@@ -1,10 +1,45 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>EZ</title>
-</head>
+<html>
 <body>
-    <h1>EZ</h1>
+    <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
+    <div id="player"></div>
+
+    <script>
+        // 2. This code loads the IFrame Player API code asynchronously.
+        var tag = document.createElement('script');
+        tag.src = "https://www.youtube.com/iframe_api";
+        var firstScriptTag = document.getElementsByTagName('script')[0];
+        firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+        // 3. This function creates an <iframe> (and YouTube player)
+        //    after the API code downloads.
+        var player;
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '390',
+                width: '640',
+                videoId: 'M7lc1UVf-VE',
+                events: {
+                    'onStateChange': onPlayerStateChange
+                }
+            });
+        }
+
+        //TODO: send request to server
+        function onPlayerStateChange(event) {
+            console.log(event);
+            let data = event.data;
+            if(data === YT.PlayerState.PLAYING){
+                let time = player.getCurrentTime();
+                console.log('Play at ',time);
+            }
+            else if(data === YT.PlayerState.PAUSED){
+                console.log('Pause');
+            }
+            else if(data === YT.PlayerState.ENDED){
+                console.log('Ended');
+            }
+        }
+    </script>
 </body>
 </html>
