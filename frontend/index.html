@@ -4,7 +4,15 @@
     <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
     <div id="player"></div>
 
+    <script src="/socket.io.js"></script>
     <script>
+        //socket conn
+        let socket = io.connect('http://localhost');
+        // socket.on('news', function (data) {
+        //     console.log(data);
+        //     socket.emit('my ', { my: 'data' });
+        // });
+
         // 2. This code loads the IFrame Player API code asynchronously.
         var tag = document.createElement('script');
         tag.src = "https://www.youtube.com/iframe_api";
@@ -24,22 +32,26 @@
                 }
             });
         }
-
         //TODO: send request to server
         function onPlayerStateChange(event) {
-            console.log(event);
+            //console.log(event);
             let data = event.data;
             if(data === YT.PlayerState.PLAYING){
                 let time = player.getCurrentTime();
-                console.log('Play at ',time);
+                socket.emit('play', { time });
             }
             else if(data === YT.PlayerState.PAUSED){
-                console.log('Pause');
-            }
-            else if(data === YT.PlayerState.ENDED){
-                console.log('Ended');
+                socket.emit('pause');
             }
         }
+        socket.on('pause', () => {
+            player.pauseVideo();
+        });
+        socket.on('play', (data) => {
+            player.seekTo(data.time);
+            player.playVideo();
+        });
+        
     </script>
 </body>
 </html>
