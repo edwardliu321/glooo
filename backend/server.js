@@ -37,10 +37,17 @@ app.listen(port, () => {
 });
 
 io.on('connection', (socket) => {
+    socket.on('join', (data) => {
+        let { roomId } = data;
+        socket.join(roomId);
+        console.log(roomId);
+    });
     socket.on('pause', (data) => {
         socket.broadcast.emit('pause');
+        console.log('pause');
     });
     socket.on('play', (data) => {
         socket.broadcast.emit('play', data);
+        console.log('play');
     });
 });
