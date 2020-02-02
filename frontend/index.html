@@ -28,10 +28,16 @@
                 width: '640',
                 videoId: 'M7lc1UVf-VE',
                 events: {
-                    'onStateChange': onPlayerStateChange
+                    'onStateChange': onPlayerStateChange,
+                    'onReady': onPlayerReady
                 }
             });
         }
+
+        const onPlayerReady = (event) => {
+            event.target.playVideo();
+        };
+
         //TODO: send request to server
         function onPlayerStateChange(event) {
             //console.log(event);
@@ -51,6 +57,7 @@
             player.seekTo(data.time);
             player.playVideo();
         });
+        socket.on('getTime')
         
     </script>
 </body>
