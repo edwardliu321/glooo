@@ -6,7 +6,7 @@
     <script src="/socket.io.js"></script>
     <script>
         //socket conn
-        let roomId = 'Ad3FdjD';
+        let roomId = location.href.split('/')[3];
         let socket = io.connect('http://localhost/');
         socket.on('connect', () => {
             socket.emit('join', { roomId });
@@ -34,6 +34,7 @@
         }
 
         const onPlayerReady = (event) => {
+            console.log('ready');
             event.target.playVideo();
         };
 
