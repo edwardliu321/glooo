@@ -1,13 +1,19 @@
 <!DOCTYPE html>
 <html>
+
 <body>
+    <div id="container">
+
+        <div id="player"></div>
+    </div>
     <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
-    <div id="player"></div>
-    <script src="/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
     <script>
+
         //socket conn
         let roomId = location.href.split('/')[3];
-        let socket = io.connect('http://localhost/');
+        let socket = io.connect('/');
         socket.on('connect', () => {
             socket.emit('join', { roomId });
         });
@@ -27,8 +33,8 @@
                 width: '640',
                 videoId: 'M7lc1UVf-VE',
                 events: {
-                    'onStateChange': onPlayerStateChange,
-                    'onReady': onPlayerReady,
+                    //'onStateChange': onPlayerStateChange,
+                    'onReady': onPlayerReady
                 }
             });
         }
@@ -37,19 +43,18 @@
             console.log('ready');
             event.target.playVideo();
         };
-
         //TODO: send request to server
         function onPlayerStateChange(event) {
-            let data = event.data;
-            if(data === YT.PlayerState.PLAYING){
+            console.log('emitting');
+            let state = player.getPlayerState();
+            if (state === YT.PlayerState.PLAYING) {
                 let time = player.getCurrentTime();
                 socket.emit('play', { time });
             }
-            else if(data === YT.PlayerState.PAUSED){
+            else if (state === YT.PlayerState.PAUSED) {
                 socket.emit('pause');
             }
         }
-
         socket.on('pause', () => {
             player.pauseVideo();
         });
@@ -57,7 +62,34 @@
             player.seekTo(data.time);
             player.playVideo();
         });
-        
+
+
+
+        let myConfObj = {
+            iframeMouseOver: false
+        }
+        let container = document.getElementById('container');
+        //get click inside iframe
+        window.addEventListener('blur', function () {
+            if (myConfObj.iframeMouseOver) {
+                //click inside iframe
+                onPlayerStateChange();
+            }
+            setTimeout(() => {
+                window.focus();
+            }, 0);
+        });
+
+        container.addEventListener('mouseover', function () {
+            myConfObj.iframeMouseOver = true;
+            window.focus();
+        });
+        container.addEventListener('mouseout', function () {
+            myConfObj.iframeMouseOver = false;
+        });
+
     </script>
+
 </body>
+
 </html>

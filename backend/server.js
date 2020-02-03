@@ -26,19 +26,13 @@ app.get('/:id', (req,res) => {
     res.sendFile(path.resolve(__dirname, "../frontend", "index.html"))
 });
 
-//Listens on port 5000 and 80(for sockets)
-app.listen(port, () => {
-    console.log(`Server is running on port: ${port}`);
-});
 const server = app.listen(80, () => {
     console.log('listening on port 80')
 });
 
 const io = require('socket.io')(server);
 
-
 let rooms = {};
-
 io.on('connection', (socket) => {
     let roomId = '';
     
