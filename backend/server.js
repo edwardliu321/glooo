@@ -32,35 +32,21 @@ const server = app.listen(80, () => {
 
 const io = require('socket.io')(server);
 
-let rooms = {};
 io.on('connection', (socket) => {
     let roomId = '';
     
     socket.on('join', (data) => {
         roomId = data.roomId;
-        if(!rooms[roomId]) rooms[roomId] = {people: 1, pause: 0, play: 0}
-        else rooms[roomId].people++;
-        console.log(rooms[roomId]);
         socket.join(roomId);
     });
     socket.on('pause', (data) => {
-        let room = rooms[roomId];
-        room.pause++;
-        if(room.pause < room.people && room.pause > 1) {return}
-        if(room.pause === room.people) {room.pause = 0; return}
         socket.to(roomId).broadcast.emit('pause');
         console.log('pause in ' + roomId);
     });
     socket.on('play', (data) => {
-        let room = rooms[roomId];
-        room.play++;
-        if(room.play < room.people && room.play > 1) {return}
-        if(room.play === room.people) {room.play = 0; return}
         socket.to(roomId).broadcast.emit('play', data);
         console.log('play in ' + roomId);
     });
     socket.on('disconnect', () => {
-        rooms[roomId].people--;
-        console.log(rooms[roomId]);
     });
 });
