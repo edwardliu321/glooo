@@ -26,6 +26,7 @@ app.get('/:id', (req,res) => {
     res.sendFile(path.resolve(__dirname, "../frontend", "index.html"))
 });
 
+//Listens on port 5000 and 80(for sockets)
 app.listen(port, () => {
     console.log(`Server is running on port: ${port}`);
 });
@@ -36,26 +37,36 @@ const server = app.listen(80, () => {
 const io = require('socket.io')(server);
 
 
-let prev = {};
+let rooms = {};
+
 io.on('connection', (socket) => {
     let roomId = '';
     
     socket.on('join', (data) => {
         roomId = data.roomId;
-        if(!prev[roomId]) prev[roomId] = 0;
+        if(!rooms[roomId]) rooms[roomId] = {people: 1, pause: 0, play: 0}
+        else rooms[roomId].people++;
+        console.log(rooms[roomId]);
         socket.join(roomId);
     });
     socket.on('pause', (data) => {
-        if(prev[roomId] === 2) return;
-        prev[roomId] = 2
-        socket.to(roomId).emit('pause');
+        let room = rooms[roomId];
+        room.pause++;
+        if(room.pause < room.people && room.pause > 1) {return}
+        if(room.pause === room.people) {room.pause = 0; return}
+        socket.to(roomId).broadcast.emit('pause');
         console.log('pause in ' + roomId);
     });
     socket.on('play', (data) => {
-        if(prev[roomId] === 1) return;
-        prev[roomId] = 1;
-        //socket.broadcast.emit('play', data);
-        socket.to(roomId).emit('play', data);
+        let room = rooms[roomId];
+        room.play++;
+        if(room.play < room.people && room.play > 1) {return}
+        if(room.play === room.people) {room.play = 0; return}
+        socket.to(roomId).broadcast.emit('play', data);
         console.log('play in ' + roomId);
+    });
+    socket.on('disconnect', () => {
+        rooms[roomId].people--;
+        console.log(rooms[roomId]);
     });
 });

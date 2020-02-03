@@ -40,7 +40,6 @@
 
         //TODO: send request to server
         function onPlayerStateChange(event) {
-            //console.log(event);
             let data = event.data;
             if(data === YT.PlayerState.PLAYING){
                 let time = player.getCurrentTime();
