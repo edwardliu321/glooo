@@ -1,19 +1,13 @@
 <!DOCTYPE html>
 <html>
-
 <body>
-    <div id="container">
-
-        <div id="player"></div>
-    </div>
     <!-- 1. The <iframe> (and video player) will replace this <div> tag. -->
-    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <div id="player"></div>
+    <script src="/socket.io.js"></script>
     <script>
-
         //socket conn
         let roomId = location.href.split('/')[3];
-        let socket = io.connect('/');
+        let socket = io.connect('http://localhost/');
         socket.on('connect', () => {
             socket.emit('join', { roomId });
         });
@@ -33,8 +27,8 @@
                 width: '640',
                 videoId: 'M7lc1UVf-VE',
                 events: {
-                    //'onStateChange': onPlayerStateChange,
-                    'onReady': onPlayerReady
+                    'onStateChange': onPlayerStateChange,
+                    'onReady': onPlayerReady,
                 }
             });
         }
@@ -43,53 +37,85 @@
             console.log('ready');
             event.target.playVideo();
         };
+
+        let emit = true;
+        let s1 = new Semaphore(0);
+
         //TODO: send request to server
         function onPlayerStateChange(event) {
-            console.log('emitting');
-            let state = player.getPlayerState();
-            if (state === YT.PlayerState.PLAYING) {
+            let data = event.data;
+            if(data === YT.PlayerState.PLAYING){
                 let time = player.getCurrentTime();
-                socket.emit('play', { time });
+                if(emit) socket.emit('play', { time });
+                s1.release();
             }
-            else if (state === YT.PlayerState.PAUSED) {
-                socket.emit('pause');
+            else if(data === YT.PlayerState.PAUSED){
+                if(emit) socket.emit('pause');
+                s1.release();
             }
         }
-        socket.on('pause', () => {
+
+        socket.on('pause', async () => {
+            emit = false;
             player.pauseVideo();
+            await s1.acquire();
+            emit = true;
         });
-        socket.on('play', (data) => {
+        socket.on('play', async (data) => {
+            emit = false;
             player.seekTo(data.time);
             player.playVideo();
+            await s1.acquire();
+            await s1.acquire();
+            emit = true;
         });
 
+        // **********
 
+        function Semaphore(max) {
+            var counter = 0;
+            var waiting = [];
 
-        let myConfObj = {
-            iframeMouseOver: false
-        }
-        let container = document.getElementById('container');
-        //get click inside iframe
-        window.addEventListener('blur', function () {
-            if (myConfObj.iframeMouseOver) {
-                //click inside iframe
-                onPlayerStateChange();
+            var take = function() {
+                if (waiting.length > 0 && counter < max){
+                    counter++;
+                    let promise = waiting.shift();
+                    promise.resolve();
+                }
+            };
+
+            this.acquire = function() {
+                if(counter < max) {
+                    counter++
+                    return new Promise(resolve => {
+                        resolve();
+                    });
+                } else {
+                    return new Promise((resolve, err) => {
+                        waiting.push({resolve: resolve, err: err});
+                    });
+                }
             }
-            setTimeout(() => {
-                window.focus();
-            }, 0);
-        });
 
-        container.addEventListener('mouseover', function () {
-            myConfObj.iframeMouseOver = true;
-            window.focus();
-        });
-        container.addEventListener('mouseout', function () {
-            myConfObj.iframeMouseOver = false;
-        });
+            this.release = function() {
+                counter--;
+                take();
+            }
+
+            this.purge = function() {
+                let unresolved = waiting.length;
+
+                for (let i = 0; i < unresolved; i++) {
+                    waiting[i].err('Task has been purged.');
+                }
+
+                counter = 0;
+                waiting = [];
+
+                return unresolved;
+            }
+        }
 
     </script>
-
 </body>
-
 </html>
