@@ -1,3 +1,4 @@
 /.idea
 /backend/.env
 */node_modules/*
+.vscode/*
