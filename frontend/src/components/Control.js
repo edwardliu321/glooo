@@ -1,12 +1,14 @@
 import React, { useRef, useState, useEffect } from 'react';
 
+const width = 640;
+
 const Control = (props) => {
 
-    const {isPlaying, pauseVideo, playVideo, getCurrentTime, videoLength} = props;
+    const {isPlaying, toggleVideo, getCurrentTime, videoLength} = props;
     const [time, setTime] = useState(getCurrentTime());
 
     let btnText = 'Play';
-    let percent = Math.round(time/videoLength*100)
+    let percent = time/videoLength
 
     if(isPlaying){
         btnText = 'Pause';
@@ -14,25 +16,32 @@ const Control = (props) => {
 
     let scrubberStyle = {
         position: "fixed",
-        width: '640px',
+        top: "350px",
+        width: width,
         height: '40px',
     }
 
+    let btnStyle = {
+        position: "fixed",
+        top: "360px",
+        zIndex: "1000"
+    }
+
     let timeStyle = {
-        width: percent + '%',
+        width: percent*width + 'px',
         height: '100%',
-        backgroundColor: 'green',
+        backgroundColor: 'rgba(0,256,0,0.5)',
     }
 
     if(isPlaying){
         setTimeout(() => {
             setTime(getCurrentTime());
-        }, 50)
+        }, 500)
     }
 
     return(
         <>
-            <button onClick={isPlaying ? pauseVideo : playVideo}>
+            <button style={btnStyle} onClick={toggleVideo}>
                 {btnText}
             </button>
             <div style={scrubberStyle}>

@@ -37,10 +37,12 @@ const Player = (props) => {
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
-        pauseVideo();
 
         ref.current.socket = SocketIOClient(socketEndpoint);
         socket = ref.current.socket;
+
+        pauseVideo();
+        
         socket.on('connect', () => {
             let roomId = props.match.params.roomId;
             socket.emit('join', { roomId });
@@ -75,12 +77,10 @@ const Player = (props) => {
         control = (
         <Control 
         isPlaying={isPlaying}
-        playVideo={playVideo}
-        pauseVideo={pauseVideo}
+        toggleVideo={playerBtnClick}
         videoLength={player.getDuration()}
         getCurrentTime={getCurrentTime}
         >
-
         </Control>
         )
     }
