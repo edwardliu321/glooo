@@ -1,6 +1,7 @@
 import React, { Component, useState, useEffect, useRef } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
+import classes from './Player.module.css'
 
 const opts = {
     height: '390',
@@ -11,17 +12,6 @@ const opts = {
     }
 }
 
-let btnStye = {
-    backgroundColor: '#4CAF50',
-    border: 'none',
-    color: 'white',
-    padding: '15px 32px',
-    textAlign: 'center',
-    textDecoration: 'none',
-    display: 'inline-block',
-    fontSize: '16px'
-}
-
 const socketEndpoint = 'http://localhost/';
 
 const Player = (props) => {
@@ -30,7 +20,6 @@ const Player = (props) => {
     let ref = useRef({socket: null, player: null});
     let socket = ref.current.socket;
     let player = ref.current.player;
-
 
     const playerBtnClick = () => {
         let playerState = player.getPlayerState();
@@ -43,6 +32,7 @@ const Player = (props) => {
             socket.emit('play', { time: player.getCurrentTime() });
         }
     }
+
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
@@ -61,10 +51,12 @@ const Player = (props) => {
             playVideo(data);
         });
     }
+
     const pauseVideo = () => {
         player.pauseVideo();
         setPlaying(false);
     }
+
     const playVideo = (data) => {
         if(data) player.seekTo(data.time);
         player.playVideo();
@@ -83,7 +75,7 @@ const Player = (props) => {
                 opts={opts} 
                 onReady={playerReady} />
                 <button
-                    style={btnStye}
+                    className={classes.BtnStyle}
                     onClick={playerBtnClick}
                     >
                     {btnText}
