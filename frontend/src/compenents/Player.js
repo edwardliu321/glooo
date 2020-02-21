@@ -1,4 +1,4 @@
-import React, { Component } from 'react';
+import React, { Component, useState, useEffect, useRef } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
 
@@ -10,7 +10,8 @@ const opts = {
         controls: 0
     }
 }
-const btnStye = {
+
+let btnStye = {
     backgroundColor: '#4CAF50',
     border: 'none',
     color: 'white',
@@ -20,74 +21,75 @@ const btnStye = {
     display: 'inline-block',
     fontSize: '16px'
 }
-const socketEndpoint = 'http://localhost/'
+
+const socketEndpoint = 'http://localhost/';
+
+const Player = (props) => {
+
+    const [isPlaying, setPlaying] = useState(false);
+    let ref = useRef({socket: null, player: null});
+    let socket = ref.current.socket;
+    let player = ref.current.player;
 
 
-class Player extends Component {
-    player = null;
-    socket = null;
-    state = {
-        btnText: '',
-        btnStyle: btnStye
+    const playerBtnClick = () => {
+        let playerState = player.getPlayerState();
+        if (playerState === 1) {
+            pauseVideo();
+            socket.emit('pause');
+        }
+        else if (playerState === 2) {
+            playVideo();
+            socket.emit('play', { time: player.getCurrentTime() });
+        }
     }
-    componentDidMount() {
-        this.socket = SocketIOClient(socketEndpoint);
-        let socket = this.socket;
+    const playerReady = (event) => {
+        ref.current.player = event.target;
+        player = ref.current.player;
+        pauseVideo();
 
+        ref.current.socket = SocketIOClient(socketEndpoint);
+        socket = ref.current.socket;
         socket.on('connect', () => {
-            let { roomId } = this.props.match.params;
+            let roomId = props.match.params.roomId;
             socket.emit('join', { roomId });
         });
         socket.on('pause', () => {
-            this.pauseVideo();
+            pauseVideo();
         });
         socket.on('play', (data) => {
-            this.playVideo(data);
+            playVideo(data);
         });
     }
+    const pauseVideo = () => {
+        player.pauseVideo();
+        setPlaying(false);
+    }
+    const playVideo = (data) => {
+        if(data) player.seekTo(data.time);
+        player.playVideo();
+        setPlaying(true);
+    }
 
-    render() {
-        return (
-            <div className="player">
+    let btnText = 'Play';
+
+    if(isPlaying){
+        btnText = 'Pause';
+    }
+
+    return (
+        <div className="player">
                 <YouTube videoId="2g811Eo7K8U" 
                 opts={opts} 
-                onReady={this.playerReady} />
+                onReady={playerReady} />
                 <button
-                    style={this.state.btnStye}
-                    onClick={this.playerBtnClick}
-                >
-                    {this.state.btnText}
+                    style={btnStye}
+                    onClick={playerBtnClick}
+                    >
+                    {btnText}
                 </button>
             </div>
-        );
-    }
-
-    playerBtnClick = () => {
-        let playerState = this.player.getPlayerState();
-        if (playerState === 1) {
-            this.pauseVideo();
-            this.socket.emit('pause');
-
-        }
-        else if (playerState === 2) {
-            this.playVideo();
-            this.socket.emit('play', { time: this.player.getCurrentTime() });
-        }
-    }
-    playerReady = (event) => {
-        this.player = event.target;
-        this.pauseVideo();
-    }
-    
-    pauseVideo = () => {
-        this.player.pauseVideo();
-        this.setState({ btnText: 'Play' });
-    }
-    playVideo = (data) => {
-        if(data) this.player.seekTo(data.time);
-        this.player.playVideo();
-        this.setState({ btnText: 'Pause' });
-    }
+    )
 }
 
 export default Player;
