@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import Player from './compenents/Player';
+import Player from './components/Player';
 
 import {BrowserRouter as Router, Switch, Route} from "react-router-dom";
 
