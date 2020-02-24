@@ -25,7 +25,7 @@ const Player = (props) => {
             pauseVideo(true);
         }
         else if (playerState === 2) {
-            playVideo({}, true);
+            playVideo(null, true);
         }
     }
 
