@@ -1,9 +1,9 @@
-import React, {useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
 import classes from './Player.module.css'
 import Control from './Control'
-import {message, Button} from 'antd'
+import { message, Button, Row, Col } from 'antd'
 
 const opts = {
     height: '390',
@@ -20,10 +20,9 @@ const Player = (props) => {
 
     const [isPlaying, setPlaying] = useState(null);
     const [userList, setUsers] = useState([]);
-    let ref = useRef({socket: null, player: null});
+    let ref = useRef({ socket: null, player: null, userId: null });
     let socket = ref.current.socket;
     let player = ref.current.player;
-
 
     //******** Socket Logic *********/
 
@@ -34,14 +33,15 @@ const Player = (props) => {
 
         ref.current.socket = SocketIOClient(socketEndpoint);
         socket = ref.current.socket;
-        
+
         //** On Connect **/
         socket.on('connect', () => {
             let roomId = props.match.params.roomId;
             socket.emit('join', { roomId }, (data) => {
+                ref.current.userId = data.userId;
                 setUsers(data.users);
-                if(data.host) playVideo();
-                message.success("Connection established.")
+                if (data.host) playVideo();
+                message.success(`Joined room "${roomId}"`);
             });
         });
 
@@ -63,12 +63,12 @@ const Player = (props) => {
         //** Handling User Join/Leave **/
         socket.on('timerequest', (data) => {
             console.log("request");
-            socket.emit('timeresponse', {id: data.id, isPlaying: player.getPlayerState() == 1, time: player.getCurrentTime()})
+            socket.emit('timeresponse', { id: data.id, isPlaying: player.getPlayerState() == 1, time: player.getCurrentTime() })
         })
         socket.on('userjoin', (data) => {
             console.log(list)
             setUsers((userList) => {
-                return [...userList, {id: data.id}]
+                return [...userList, data]
             });
             message.info("A user has joined!")
         });
@@ -97,24 +97,24 @@ const Player = (props) => {
     const pauseVideo = (emit) => {
         player.pauseVideo();
         setPlaying(false);
-        if(emit){
+        if (emit) {
             socket.emit('pause');
         }
     }
 
     const playVideo = (time, emit) => {
-        if(time) player.seekTo(time);
+        if (time) player.seekTo(time);
         player.playVideo();
         setPlaying(true);
-        if(emit){
-            socket.emit('play', {time : getCurrentTime()});
+        if (emit) {
+            socket.emit('play', { time: getCurrentTime() });
         }
     }
 
     const seekTo = (time, emit) => {
         player.seekTo(time)
-        if(emit){
-            socket.emit('seek', {time});
+        if (emit) {
+            socket.emit('seek', { time });
         }
     }
 
@@ -123,35 +123,46 @@ const Player = (props) => {
     }
 
     //******** Conditional Renders *********/
-    
+
     let users = userList.map((user) => {
-        return (<li>{user.id}</li>)
+        return (
+            <li key={user.id}>
+                {user.name}
+                { ref.current.userId == user.id ? '*' : '' }
+            </li>
+        )
     })
     let control = null;
 
-    if(player){
+    if (player) {
         control = (
-        <Control 
-        isPlaying={isPlaying}
-        toggleVideo={playerBtnClick}
-        videoLength={player.getDuration()}
-        getCurrentTime={getCurrentTime}
-        seekTo={seekTo}
-        >
-        </Control>
+            <Control
+                isPlaying={isPlaying}
+                toggleVideo={playerBtnClick}
+                videoLength={player.getDuration()}
+                getCurrentTime={getCurrentTime}
+                seekTo={seekTo}
+            >
+            </Control>
         )
     }
 
     return (
         <div className="player">
-                <YouTube videoId="2g811Eo7K8U"
+            <YouTube videoId="2g811Eo7K8U"
                 opts={opts}
-                onReady={playerReady}/>
-                {control}
-                <h4>Count: {userList.length}</h4>
-                <ul>
-                    {users}    
-                </ul>     
+                onReady={playerReady} />
+
+            <Row>
+                <Col span={10}>
+                    {control}
+                </Col>
+            </Row>
+
+            <h4>Count: {userList.length}</h4>
+            <ul>
+                {users}
+            </ul>
         </div>
     )
 }

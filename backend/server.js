@@ -29,51 +29,65 @@ const resources = {
     rooms: {}
 }
 
+const createRoom = (roomId) => {
+    resources.rooms[roomId] = {
+        users : [],
+        count : 0
+    };
+}
+
 io.on('connection', (socket) => {
     let roomId = '';
     let rooms = resources.rooms;
-    console.log('connect');
     let userId = socket.id;
+    console.log('connection');
     socket.on('join', (data, fn) => {
         roomId = data.roomId;
         socket.join(roomId);
-        let host = true;
-        if (rooms[roomId]) {
-            host = false;
-            let room = rooms[roomId];
-            room.push({
-                id: userId,
-                host
-            });
+        console.log(userId + ' has joined');
+        //create in server. Will assume room always exists.
+        if(!rooms[roomId]) createRoom(roomId);
+        let room = rooms[roomId];
+        room.count++;
+        let user = {
+            id: userId,
+            name: 'User ' + room.count,
+            host : false
+        };
+        if (room.users.length > 0) {
+            //join existing room
+            room.users.push(user);
             //notify new user join
-            socket.to(roomId).broadcast.emit('userjoin', { id: userId });
-            console.log(rooms[roomId]);
+            socket.to(roomId).broadcast.emit('userjoin', { id: userId, name: user.name });
             
-            let hostUser = room.find((x) => x.host);
+            //request to obtain time from host
+            let hostUser = room.users.find((x) => x.host);
             socket.to(hostUser.id).emit('timerequest', {id: userId});
         }
         else {
             //initialize new room
-            rooms[roomId] = [{
-                id: userId,
-                host
-            }];
+            user.host = true;
+            room.users.push(user);
         }
+        console.log(rooms);
+        
         let response = {
-            users: rooms[roomId],
-            host
+            users: room.users,
+            host: user.host,
+            userId: userId
         };
         fn(response);
     });
 
+
+    //respond to timerequest
     socket.on('timeresponse', (data) => {
         console.log('time response')
-        console.log(data)
         let client = socket.to(data.id);
-        if(data.isPlaying){
+        if(data.isPlaying) {
            client.emit('play', {time: data.time});
         }
-        else{
+        else {
             client.emit('seekpause', {time: data.time});
         }
     });
@@ -94,25 +108,24 @@ io.on('connection', (socket) => {
         //user leaves
         let room = rooms[roomId];
         if (!room) return;
-        for (let i = 0; i < room.length; i++) {
-            if (room[i].id === userId) {
+        for (let i = 0; i < room.users.length; i++) {
+            if (room.users[i].id === userId) {
                 //remove user
-                room.splice(i, 1);
+                room.users.splice(i, 1);
                 socket.to(roomId).broadcast.emit('userleft', { id: userId });
                 break;
             }
         }
-        if (room.length == 0) {
-            //delete empty room
+        if (room.users.length === 0) {
+            //delete empty room (no users)
+            console.log('deleting room: ' + roomId);
             delete rooms[roomId];
             return;
         }
-        if(!room[0].host){
-            room[0].host = true;
+
+        //reassign host to next user
+        if(!room.users[0].host){
+            room.users[0].host = true;
         }
     });
 });
-
-const getRandomID = () => {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-}
