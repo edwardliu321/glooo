@@ -25,13 +25,41 @@ const server = app.listen(80, () => {
 
 const io = require('socket.io')(server);
 
+const resources = {
+    rooms: {}
+}
+
 io.on('connection', (socket) => {
     let roomId = '';
-    console.log('connect')
-    socket.on('join', (data) => {
+    let userId = getRandomID();
+    let rooms = resources.rooms;
+    console.log('connect');
+    socket.on('join', (data, fn) => {
         roomId = data.roomId;
         socket.join(roomId);
 
+        if (rooms[roomId]) {
+            let room = rooms[roomId];
+            room.push({
+                id: userId,
+                host: false
+            });
+            //notify new user join
+            socket.to(roomId).broadcast.emit('userjoin', { id: userId });
+            console.log(rooms[roomId]);
+        }
+        else {
+            //initialize new room
+            rooms[roomId] = [{
+                id: userId,
+                host: true
+            }];
+        }
+        let response = {
+            users: rooms[roomId],
+            time: 0 //todo
+        }
+        fn(response);
     });
     socket.on('pause', () => {
         socket.to(roomId).broadcast.emit('pause');
@@ -46,5 +74,28 @@ io.on('connection', (socket) => {
         console.log('seek in ' + roomId);
     });
     socket.on('disconnect', () => {
+        //user leaves
+        let room = rooms[roomId];
+        if (!room) return;
+        for (let i = 0; i < room.length; i++) {
+            if (room[i].id === userId) {
+                //remove user
+                room.splice(i, 1);
+                socket.to(roomId).broadcast.emit('userleft', { id: userId });
+                break;
+            }
+        }
+        if (room.length == 0) {
+            //delete empty room
+            delete rooms[roomId];
+            return;
+        }
+        if(!room[0].host){
+            room[0].host = true;
+        }
     });
 });
+
+const getRandomID = () => {
+    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+}
