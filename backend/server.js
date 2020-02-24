@@ -31,36 +31,53 @@ const resources = {
 
 io.on('connection', (socket) => {
     let roomId = '';
-    let userId = getRandomID();
     let rooms = resources.rooms;
     console.log('connect');
+    let userId = socket.id;
     socket.on('join', (data, fn) => {
         roomId = data.roomId;
         socket.join(roomId);
-
+        let host = true;
         if (rooms[roomId]) {
+            host = false;
             let room = rooms[roomId];
             room.push({
                 id: userId,
-                host: false
+                host
             });
             //notify new user join
             socket.to(roomId).broadcast.emit('userjoin', { id: userId });
             console.log(rooms[roomId]);
+            
+            let hostUser = room.find((x) => x.host);
+            socket.to(hostUser.id).emit('timerequest', {id: userId});
         }
         else {
             //initialize new room
             rooms[roomId] = [{
                 id: userId,
-                host: true
+                host
             }];
         }
         let response = {
             users: rooms[roomId],
-            time: 0 //todo
-        }
+            host
+        };
         fn(response);
     });
+
+    socket.on('timeresponse', (data) => {
+        console.log('time response')
+        console.log(data)
+        let client = socket.to(data.id);
+        if(data.isPlaying){
+           client.emit('play', {time: data.time});
+        }
+        else{
+            client.emit('seekpause', {time: data.time});
+        }
+    });
+
     socket.on('pause', () => {
         socket.to(roomId).broadcast.emit('pause');
         console.log('pause in ' + roomId);

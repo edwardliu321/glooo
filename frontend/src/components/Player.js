@@ -34,17 +34,18 @@ const Player = (props) => {
 
         ref.current.socket = SocketIOClient(socketEndpoint);
         socket = ref.current.socket;
-
-        pauseVideo();
         
+        //** On Connect **/
         socket.on('connect', () => {
             let roomId = props.match.params.roomId;
             socket.emit('join', { roomId }, (data) => {
                 setUsers(data.users);
-                playVideo(data.time || 0, false);
-                message.info("Connection established.")
+                if(data.host) playVideo();
+                message.success("Connection established.")
             });
         });
+
+        //** Syncronizing Players **/
         socket.on('pause', () => {
             pauseVideo(false);
         });
@@ -54,6 +55,16 @@ const Player = (props) => {
         socket.on('seek', (data) => {
             seekTo(data.time, false);
         });
+        socket.on('seekpause', (data) => {
+            seekTo(data.time, false);
+            pauseVideo();
+        });
+
+        //** Handling User Join/Leave **/
+        socket.on('timerequest', (data) => {
+            console.log("request");
+            socket.emit('timeresponse', {id: data.id, isPlaying: player.getPlayerState() == 1, time: player.getCurrentTime()})
+        })
         socket.on('userjoin', (data) => {
             console.log(list)
             setUsers((userList) => {
