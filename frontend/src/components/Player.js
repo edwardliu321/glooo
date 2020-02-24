@@ -12,11 +12,8 @@ const opts = {
         controls: 0
     }
 }
-
 const socketEndpoint = 'http://localhost/';
-
 const Player = (props) => {
-    
     const [isPlaying, setPlaying] = useState(true);
     let ref = useRef({socket: null, player: null});
     let socket = ref.current.socket;
@@ -25,12 +22,10 @@ const Player = (props) => {
     const playerBtnClick = () => {
         let playerState = player.getPlayerState();
         if (playerState === 1) {
-            pauseVideo();
-            socket.emit('pause');
+            pauseVideo(true);
         }
         else if (playerState === 2) {
-            playVideo();
-            socket.emit('play', { time: player.getCurrentTime() });
+            playVideo({}, true);
         }
     }
 
@@ -48,22 +43,39 @@ const Player = (props) => {
             socket.emit('join', { roomId });
         });
         socket.on('pause', () => {
-            pauseVideo();
+            pauseVideo(false);
         });
         socket.on('play', (data) => {
-            playVideo(data);
+            playVideo(data.time, false);
         });
+        socket.on('seek', (data) => {
+            seekTo(data.time, false);
+        });
+        
     }
 
-    const pauseVideo = () => {
+    const pauseVideo = (emit) => {
         player.pauseVideo();
         setPlaying(false);
+        if(emit){
+            socket.emit('pause');
+        }
     }
 
-    const playVideo = (data) => {
-        if(data && data.time) player.seekTo(data.time);
+    const playVideo = (time, emit) => {
+        if(time) player.seekTo(time);
         player.playVideo();
         setPlaying(true);
+        if(emit){
+            socket.emit('play', {time : getCurrentTime()});
+        }
+    }
+
+    const seekTo = (time, emit) => {
+        player.seekTo(time)
+        if(emit){
+            socket.emit('seek', {time});
+        }
     }
 
     const getCurrentTime = () => {
@@ -80,6 +92,7 @@ const Player = (props) => {
         toggleVideo={playerBtnClick}
         videoLength={player.getDuration()}
         getCurrentTime={getCurrentTime}
+        seekTo={seekTo}
         >
         </Control>
         )

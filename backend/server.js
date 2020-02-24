@@ -33,13 +33,17 @@ io.on('connection', (socket) => {
         socket.join(roomId);
 
     });
-    socket.on('pause', (data) => {
+    socket.on('pause', () => {
         socket.to(roomId).broadcast.emit('pause');
         console.log('pause in ' + roomId);
     });
     socket.on('play', (data) => {
         socket.to(roomId).broadcast.emit('play', data);
         console.log('play in ' + roomId);
+    });
+    socket.on('seek', (data) => {
+        socket.to(roomId).broadcast.emit('seek', data);
+        console.log('seek in ' + roomId);
     });
     socket.on('disconnect', () => {
     });

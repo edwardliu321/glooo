@@ -1,55 +1,62 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useReducer } from 'react';
+import { Slider } from 'antd';
 
-const width = 640;
+
+const useInterval = (callback, delay) => {
+    const savedCallback = useRef();
+
+    // Remember the latest callback.
+    useEffect(() => {
+        savedCallback.current = callback;
+    }, [callback]);
+
+    // Set up the interval.
+    useEffect(() => {
+        function tick() {
+            savedCallback.current();
+        }
+        if (delay !== null) {
+            let id = setInterval(tick, delay);
+            return () => clearInterval(id);
+        }
+    }, [delay]);
+}
+
+const width = 635;
 
 const Control = (props) => {
 
-    const {isPlaying, toggleVideo, getCurrentTime, videoLength} = props;
+    const { isPlaying, toggleVideo, getCurrentTime, videoLength, seekTo } = props;
     const [time, setTime] = useState(getCurrentTime());
-
+    let percent = time / videoLength * 100;
+    
+    let scrubberStyle = {
+        width: width
+    }
     let btnText = 'Play';
-    let percent = time/videoLength
-
-    if(isPlaying){
+    if (isPlaying) {
         btnText = 'Pause';
     }
 
-    let scrubberStyle = {
-        position: "fixed",
-        top: "350px",
-        width: width,
-        height: '40px',
-    }
+    useInterval(() => {
+        setTime(getCurrentTime());
+    },500);
 
-    let btnStyle = {
-        position: "fixed",
-        top: "360px",
-        zIndex: "1000"
+    const playerChange = (percent) => {
+        let time = percent / 100 * videoLength;
+        seekTo(time, true);
+        setTime(time);
     }
-
-    let timeStyle = {
-        width: percent*width + 'px',
-        height: '100%',
-        backgroundColor: 'rgba(0,256,0,0.5)',
-    }
-
-    if(isPlaying){
-        setTimeout(() => {
-            setTime(getCurrentTime());
-        }, 500)
-    }
-
-    return(
+    return (
         <>
-            <button style={btnStyle} onClick={toggleVideo}>
+            <button onClick={toggleVideo}>
                 {btnText}
             </button>
-            <div style={scrubberStyle}>
-                <div style={timeStyle}>    
-                </div>
-            </div>
+            <Slider style={scrubberStyle} value={percent} onChange={playerChange} tipFormatter={null}/>
         </>
     )
+
+    
 }
 
 export default Control;
