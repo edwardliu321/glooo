@@ -19,8 +19,8 @@ app.use(express.json());
 //     console.log("MongoDB database connection established successfully");
 // });
 
-const server = app.listen(80, () => {
-    console.log('listening on port 80')
+const server = app.listen(8080, () => {
+    console.log('socket listening on port 8080')
 });
 
 const io = require('socket.io')(server);

@@ -13,7 +13,7 @@ const opts = {
         controls: 0
     }
 }
-const socketEndpoint = 'http://localhost/';
+const socketEndpoint = 'http://localhost:8080/';
 const Player = (props) => {
 
     //******** States and Refs *********/
