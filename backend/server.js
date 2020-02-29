@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 // const mongoose = require('mongoose');
-// const path = require('path');
+const path = require('path');
 const app = express();
 // const port = process.env.PORT || 5000;
 
@@ -18,6 +18,12 @@ app.use(express.json());
 // connection.once('open', () => {
 //     console.log("MongoDB database connection established successfully");
 // });
+
+
+app.use(express.static(path.join(__dirname, '../frontend/build')));
+app.get('/',(req,res) => {
+    res.sendfile(path.join(__dirname, '../frontend/build', 'index.html'));
+});
 
 const server = app.listen(80, () => {
     console.log('listening on port 80')
