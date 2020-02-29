@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 // const mongoose = require('mongoose');
-// const path = require('path');
+const path = require('path');
 const app = express();
 // const port = process.env.PORT || 5000;
 
@@ -21,6 +21,14 @@ app.use(express.json());
 
 const server = app.listen(8080, () => {
     console.log('socket listening on port 8080')
+
+app.use(express.static(path.join(__dirname, '../frontend/build')));
+app.get('/',(req,res) => {
+    res.sendfile(path.join(__dirname, '../frontend/build', 'index.html'));
+});
+
+const server = app.listen(80, () => {
+    console.log('listening on port 80')
 });
 
 const io = require('socket.io')(server);
