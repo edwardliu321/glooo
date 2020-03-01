@@ -4,6 +4,7 @@ import SocketIOClient from 'socket.io-client'
 import classes from './Player.module.css'
 import Control from './Control'
 import { message, Button, Row, Col } from 'antd'
+require('dotenv').config();
 
 const opts = {
     height: '390',
@@ -14,7 +15,8 @@ const opts = {
     }
 }
 //const socketEndpoint = 'http://localhost:8080/';
-const socketEndpoint = 'https://glooo.io/';
+//const socketEndpoint = 'https://glooo.io/';
+const socketEndpoint = process.env.socket_endpoint;
 
 const Player = (props) => {
 
