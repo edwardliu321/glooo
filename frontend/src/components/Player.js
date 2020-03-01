@@ -13,7 +13,9 @@ const opts = {
         controls: 0
     }
 }
-const socketEndpoint = 'http://localhost:8080/';
+//const socketEndpoint = 'http://localhost:8080/';
+const socketEndpoint = 'https://glooo.io/';
+
 const Player = (props) => {
 
     //******** States and Refs *********/
