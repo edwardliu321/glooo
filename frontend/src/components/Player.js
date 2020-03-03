@@ -4,7 +4,7 @@ import SocketIOClient from 'socket.io-client'
 import classes from './Player.module.css'
 import Control from './Control'
 import { message, Button, Row, Col } from 'antd'
-require('dotenv').config();
+import config from '../config'
 
 const opts = {
     height: '390',
@@ -16,7 +16,7 @@ const opts = {
 }
 //const socketEndpoint = 'http://localhost:8080/';
 //const socketEndpoint = 'https://glooo.io/';
-const socketEndpoint = process.env.socket_endpoint;
+const socketEndpoint = config.socketEndpoint;
 
 const Player = (props) => {
 
@@ -67,7 +67,7 @@ const Player = (props) => {
         //** Handling User Join/Leave **/
         socket.on('timerequest', (data) => {
             console.log("request");
-            socket.emit('timeresponse', { id: data.id, isPlaying: player.getPlayerState() == 1, time: player.getCurrentTime() })
+            socket.emit('timeresponse', { id: data.id, isPlaying: player.getPlayerState() === 1, time: player.getCurrentTime() })
         })
         socket.on('userjoin', (data) => {
             console.log(list)
@@ -79,9 +79,14 @@ const Player = (props) => {
         socket.on('userleft', (data) => {
             setUsers((userList) => {
                 let newUserList = [...userList]
-                return newUserList.filter((user) => user.id != data.id)
+                return newUserList.filter((user) => user.id !== data.id)
             })
             message.warning("A user has left.")
+        })
+
+        //** Handling Video Changes **/
+        socket.on('cuevideo', (data) => {
+            cueVideoById(data.videoId,false);
         })
     }
 
@@ -95,6 +100,14 @@ const Player = (props) => {
         }
         else {
             playVideo(null, true);
+        }
+    }
+
+    const cueVideoById = (videoId, emit) => {
+        player.cueVideoById(videoId);
+        setPlaying(false);
+        if(emit){
+            socket.emit('cuevideo', {videoId});
         }
     }
 
@@ -132,7 +145,7 @@ const Player = (props) => {
         return (
             <li key={user.id}>
                 {user.name}
-                { ref.current.userId == user.id ? '*' : '' }
+                { ref.current.userId === user.id ? '*' : '' }
             </li>
         )
     })
