@@ -24,10 +24,10 @@ const server = app.listen(8080, () => {
 });
 
 // app.use(express.static(path.join(__dirname, '/../frontend/build')));
-// app.get('*',(req,res) => {
-//     console.log(__dirname);
-//     res.sendFile(path.join(__dirname, '/../frontend/build', 'index.html'));
-// });
+app.get('*',(req,res) => {
+    console.log(__dirname);
+    res.sendFile(path.join(__dirname, '/../frontend/build', 'index.html'));
+});
 app.listen(5000);
 const io = require('socket.io')(server);
 
