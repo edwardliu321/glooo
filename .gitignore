@@ -5,3 +5,4 @@
 vidyo.iml
 *.pem
 *.env
+/frontend/src/config.js
