@@ -57,7 +57,10 @@ const Player = (props) => {
                     //}
                 }
                 else {
-                    cueVideoById(data.videoId, false);
+                    if(data.videoId) 
+                        cueVideoById(data.videoId, false);
+                    else
+                        ref.current.requireTime = false;
                 }
                 //socket.emit()
                 message.success(`Joined room "${roomId}"`);
