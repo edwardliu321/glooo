@@ -24,12 +24,14 @@ const Player = (props) => {
 
     const [isPlaying, setPlaying] = useState(null);
     const [userList, setUsers] = useState([]);
-    let ref = useRef({ socket: null, player: null, userId: null });
+    
+    let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false});
+
     let socket = ref.current.socket;
     let player = ref.current.player;
 
     //******** Socket Logic *********/
-
+    
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
@@ -42,9 +44,22 @@ const Player = (props) => {
         socket.on('connect', () => {
             let roomId = props.match.params.roomId;
             socket.emit('join', { roomId }, (data) => {
+                console.log("join data ", data);
                 ref.current.userId = data.userId;
                 setUsers(data.users);
-                if (data.host) playVideo();
+                if (data.host) {
+                    ref.current.isHost = true;
+                    ref.current.requireTime = false;
+                    //pauseVideo();
+                    //if(data.videoId){
+                        //default
+                        //cueVideoById(data.videoId, false);
+                    //}
+                }
+                else {
+                    cueVideoById(data.videoId, false);
+                }
+                //socket.emit()
                 message.success(`Joined room "${roomId}"`);
             });
         });
@@ -64,10 +79,20 @@ const Player = (props) => {
             pauseVideo();
         });
 
+        //** Handling Video Changes **/
+        socket.on('cuevideo', (data) => {
+            cueVideoById(data.videoId,false);
+        })
+
         //** Handling User Join/Leave **/
         socket.on('timerequest', (data) => {
             console.log("request");
-            socket.emit('timeresponse', { id: data.id, isPlaying: player.getPlayerState() === 1, time: player.getCurrentTime() })
+            socket.emit('timeresponse', { 
+                id: data.id,
+                isPlaying: player.getPlayerState() === 1, 
+                time: player.getCurrentTime(),
+                videoId: ref.current.videoId
+            })
         })
         socket.on('userjoin', (data) => {
             console.log(list)
@@ -83,11 +108,6 @@ const Player = (props) => {
             })
             message.warning("A user has left.")
         })
-
-        //** Handling Video Changes **/
-        socket.on('cuevideo', (data) => {
-            cueVideoById(data.videoId,false);
-        })
     }
 
 
@@ -102,10 +122,11 @@ const Player = (props) => {
             playVideo(null, true);
         }
     }
-
     const cueVideoById = (videoId, emit) => {
-        player.cueVideoById(videoId);
-        setPlaying(false);
+        if (videoId === ref.current.videoId) return;
+        console.log(videoId);
+        player.loadVideoById(videoId);
+        // console.log('duration ', player.getDuration());
         if(emit){
             socket.emit('cuevideo', {videoId});
         }
@@ -139,6 +160,28 @@ const Player = (props) => {
         return player.getCurrentTime();
     }
 
+    const playerStateChanged =(e) =>{
+        console.log("state change: ", player.getDuration());
+        console.log("vidId: ", player.getVideoData()['video_id']);
+        let x = player.getDuration();
+        let videoId = player.getVideoData()['video_id'];
+        console.log(ref.current.videoId);
+        if(x > 0 && ref.current.videoId !== videoId){
+            console.log('video load');
+            
+            ref.current.videoId = videoId;
+            if(ref.current.requireTime) { 
+                socket.emit('timerequest', { id: ref.current.userId} );
+                ref.current.requireTime = false;
+            }
+            //If video changes and already in room
+            else{
+                setPlaying(null); //force state change
+                pauseVideo();
+                seekTo(0);
+            }
+        }
+    }
     //******** Conditional Renders *********/
 
     let users = userList.map((user) => {
@@ -150,6 +193,7 @@ const Player = (props) => {
         )
     })
     let control = null;
+    let youtube = null;
 
     if (player) {
         control = (
@@ -163,24 +207,30 @@ const Player = (props) => {
             </Control>
         )
     }
-
     return (
-        <div className="player">
-            <YouTube videoId="2g811Eo7K8U"
-                opts={opts}
-                onReady={playerReady} />
+        <>
+            <div>
+                <input onChange={(e)=>ref.current.newVideoId=e.target.value}></input>
+                <button onClick={()=>cueVideoById(ref.current.newVideoId,true)}>Change Video</button>
+            </div>
+            <div className="player">
+                <YouTube
+                    opts={opts}
+                    onReady={playerReady}
+                    onStateChange={playerStateChanged} />
+ 
+                <Row>
+                    <Col span={10}>
+                        {control}
+                    </Col>
+                </Row>
 
-            <Row>
-                <Col span={10}>
-                    {control}
-                </Col>
-            </Row>
-
-            <h4>Count: {userList.length}</h4>
-            <ul>
-                {users}
-            </ul>
-        </div>
+                <h4>Count: {userList.length}</h4>
+                <ul>
+                    {users}
+                </ul>
+            </div>
+        </>
     )
 }
 

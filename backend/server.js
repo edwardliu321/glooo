@@ -38,7 +38,8 @@ const resources = {
 const createRoom = (roomId) => {
     resources.rooms[roomId] = {
         users : [],
-        count : 0
+        count : 0,
+        videoId: null//'2g811Eo7K8U'
     };
 }
 
@@ -67,8 +68,8 @@ io.on('connection', (socket) => {
             socket.to(roomId).broadcast.emit('userjoin', { id: userId, name: user.name });
             
             //request to obtain time from host
-            let hostUser = room.users.find((x) => x.host);
-            socket.to(hostUser.id).emit('timerequest', {id: userId});
+            //let hostUser = room.users.find((x) => x.host);
+            //socket.to(hostUser.id).emit('timerequest', {id: userId});
         }
         else {
             //initialize new room
@@ -80,7 +81,8 @@ io.on('connection', (socket) => {
         let response = {
             users: room.users,
             host: user.host,
-            userId: userId
+            userId: userId,
+            videoId: room.videoId
         };
         fn(response);
     });
@@ -94,10 +96,16 @@ io.on('connection', (socket) => {
            client.emit('play', {time: data.time});
         }
         else {
+            console.log('seekpause')
             client.emit('seekpause', {time: data.time});
         }
     });
+    socket.on('timerequest', (data) => {
+        let users = rooms[roomId].users;
+        let hostUser = users.find((x) => x.host);
+        socket.to(hostUser.id).emit('timerequest', data);
 
+    });
     socket.on('pause', () => {
         socket.to(roomId).broadcast.emit('pause');
         console.log('pause in ' + roomId);
@@ -110,6 +118,13 @@ io.on('connection', (socket) => {
         socket.to(roomId).broadcast.emit('seek', data);
         console.log('seek in ' + roomId);
     });
+    
+    socket.on('cuevideo', (data) => {
+        rooms[roomId].videoId = data.videoId;
+        socket.to(roomId).broadcast.emit('cuevideo', data);
+        console.log('switch to video: ' + data.videoId);
+    });
+    
     socket.on('disconnect', () => {
         //user leaves
         let room = rooms[roomId];
