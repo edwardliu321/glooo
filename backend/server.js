@@ -66,7 +66,7 @@ app.post('/room/create', (req, res) => {
 });
 
 app.post('/room/checkid', (req,res) => {
-    let id = req.params.id;
+    let id = req.body.id;
     let exists = false;
     if(resources.rooms[id]){
         exists = true;
