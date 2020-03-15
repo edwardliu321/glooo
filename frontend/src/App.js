@@ -9,7 +9,7 @@ const App = (props) => {
     return (
         <Router>
             <Switch>
-                <Route path="/" component={Home} />
+                <Route exact path="/" component={Home} />
                 <Route path="/video/:roomId" component={Player} />
             </Switch>
         </Router>
