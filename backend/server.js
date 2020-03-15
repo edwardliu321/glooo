@@ -31,17 +31,51 @@ app.get('*',(req,res) => {
 app.listen(5000);
 const io = require('socket.io')(server);
 
-const resources = {
-    rooms: {}
+
+const generateID = (length) => {
+    var result           = '';
+    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var charactersLength = characters.length;
+    for ( var i = 0; i < length; i++ ) {
+       result += characters.charAt(Math.floor(Math.random() * charactersLength));
+    }
+    return result;
 }
 
-const createRoom = (roomId) => {
-    resources.rooms[roomId] = {
-        users : [],
-        count : 0,
-        videoId: null//'2g811Eo7K8U'
-    };
+const resources = {
+    rooms: {},
+    createRoom : (roomId) => {
+        resources.rooms[roomId] = {
+            users : [],
+            count : 0,
+            videoId: null//'2g811Eo7K8U'
+        };
+    },
+   
 }
+
+app.post('/room/create', (req, res) => {
+    let roomId = null;
+    while(!roomId || resources.rooms[roomId]){
+        roomId = generateID(8)
+    }
+    resources.createRoom(roomId);
+    res.send({
+        id:roomId
+    });
+});
+
+app.post('/room/checkid', (req,res) => {
+    let id = req.params.id;
+    let exists = false;
+    if(resources.rooms[id]){
+        exists = true;
+    }
+    res.send({
+        exists
+    });
+});
+
 
 io.on('connection', (socket) => {
     let roomId = '';
@@ -53,7 +87,7 @@ io.on('connection', (socket) => {
         socket.join(roomId);
         console.log(userId + ' has joined');
         //create in server. Will assume room always exists.
-        if(!rooms[roomId]) createRoom(roomId);
+        if(!rooms[roomId]) resources.createRoom(roomId);
         let room = rooms[roomId];
         room.count++;
         let user = {
