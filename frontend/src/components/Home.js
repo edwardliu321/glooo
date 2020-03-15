@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-import './Home.css'
+import classes from './Home.module.css'
 
 const Home = (props) => {
     return (
         <div>
-            <h1>Hello</h1>
+            <h1 className={classes.text}>Hello</h1>
         </div>
     )
 }
