@@ -6,7 +6,7 @@ import Control from './Control'
 import UserList from '../Users/UserList'
 import User from '../Users/user.type';
 import { message, Button, Row, Col } from 'antd'
-import config from '../../config'
+import config from '../../../config'
 import VideoChange from './VideoChange';
 
 const opts = {
@@ -194,14 +194,6 @@ const Player : React.FC<Props> = (props) => {
     }
     //******** Conditional Renders *********/
 
-    let users = userList.map((user) => {
-        return (
-            <li key={user.id}>
-                {user.name}
-                { ref.current.userId === user.id ? '*' : '' }
-            </li>
-        )
-    })
     let control = null;
     let youtube = null;
 

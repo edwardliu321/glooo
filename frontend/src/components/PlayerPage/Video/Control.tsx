@@ -55,6 +55,7 @@ const Control: React.FC<Props> = (props) => {
         seekTo(time, true);
         setTime(time);
     }
+    
     return (
         <>
             <Row>

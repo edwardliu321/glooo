@@ -1,10 +1,10 @@
 import React, { Component } from 'react';
 import {BrowserRouter as Router, Switch, Route} from "react-router-dom";
-import Player from './components/Video/Player.tsx';
-import Home from './components/Home.tsx';
+import Player from './components/PlayerPage/Video/Player.tsx';
+import Home from './components/HomePage/Home.tsx';
 import 'antd/dist/antd.css'
 
-const App = (props) => {
+const App = () => {
 
     return (
         <Router>

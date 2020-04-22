@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useHistory } from 'react-router-dom';
 import classes from './Home.module.css'
-import config from '../config'
+import config from '../../config'
 import { Button, message, Modal, Input, Typography } from 'antd';
+import RoomControl from './RoomControl';
 
 const { Text } = Typography
 const axios = require('axios')
@@ -54,18 +55,17 @@ const Home = () => {
 
     return (
         <div>
-            <div>
-                <div className={classes.btnContainer}>
-                    <Button size="large" type="primary" onClick={createRoom}>Create Room</Button>
-                    <Button size="large" onClick={openModal}>Join Room</Button>
-                </div>
-            </div>
+            <RoomControl
+                clickCreateRoom={createRoom}
+                clickJoinRoom={openModal}
+            >    
+            </RoomControl>
             <Modal
-                    title={"Enter Room Id"}
-                    visible={modalVisible}
-                    onOk={joinRoom}
-                    okText={"Join"}
-                    onCancel={closeModal}
+                title={"Enter Room Id"}
+                visible={modalVisible}
+                onOk={joinRoom}
+                okText={"Join"}
+                onCancel={closeModal}
                 >
                     <Input size="large" value={roomId} onChange={onIDChange} placeholder="Room Id"/>
                     {roomErrorMessageHtml}
