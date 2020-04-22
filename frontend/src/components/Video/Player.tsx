@@ -3,8 +3,11 @@ import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
 import classes from './Player.module.css'
 import Control from './Control'
+import UserList from '../Users/UserList'
+import User from '../Users/user.type';
 import { message, Button, Row, Col } from 'antd'
-import config from '../config'
+import config from '../../config'
+import VideoChange from './VideoChange';
 
 const opts = {
     height: '390',
@@ -18,12 +21,16 @@ const opts = {
 //const socketEndpoint = 'https://glooo.io/';
 const socketEndpoint = config.socketEndpoint;
 
-const Player = (props) => {
+type Props = {
+    match: {params: {roomId: string}}
+}
+
+const Player : React.FC<Props> = (props) => {
 
     //******** States and Refs *********/
 
     const [isPlaying, setPlaying] = useState(null);
-    const [userList, setUsers] = useState([]);
+    const [userList, setUsers] = useState<User[]>([]);
     
     let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false});
 
@@ -79,7 +86,7 @@ const Player = (props) => {
         });
         socket.on('seekpause', (data) => {
             seekTo(data.time, false);
-            pauseVideo();
+            pauseVideo(false);
         });
 
         //** Handling Video Changes **/
@@ -180,8 +187,8 @@ const Player = (props) => {
             //If video changes and already in room
             else{
                 setPlaying(null); //force state change
-                pauseVideo();
-                seekTo(0);
+                pauseVideo(false);
+                seekTo(0, false);
             }
         }
     }
@@ -212,26 +219,22 @@ const Player = (props) => {
     }
     return (
         <>
-            <div>
-                <input onChange={(e)=>ref.current.newVideoId=e.target.value}></input>
-                <button onClick={()=>cueVideoById(ref.current.newVideoId,true)}>Change Video</button>
-            </div>
+            <VideoChange 
+                onInputChange={(newId: string) => ref.current.newVideoId = newId}
+                onClick={()=>cueVideoById(ref.current.newVideoId,true)}
+            >
+            </VideoChange>
             <div className="player">
                 <YouTube
                     opts={opts}
                     onReady={playerReady}
                     onStateChange={playerStateChanged} />
- 
                 <Row>
                     <Col span={10}>
                         {control}
                     </Col>
                 </Row>
-
-                <h4>Count: {userList.length}</h4>
-                <ul>
-                    {users}
-                </ul>
+                <UserList userList={userList} currentUserId={ref.current.userId}></UserList>
             </div>
         </>
     )

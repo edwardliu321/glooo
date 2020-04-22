@@ -7,7 +7,7 @@ import { Button, message, Modal, Input, Typography } from 'antd';
 const { Text } = Typography
 const axios = require('axios')
 
-const Home = (props) => {
+const Home = () => {
 
     const history = useHistory();
     const [modalVisible, setModalVisible] = useState(false);

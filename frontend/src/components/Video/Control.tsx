@@ -1,9 +1,17 @@
 import React, { useRef, useState, useEffect, useReducer } from 'react';
 import { Slider, Button, Row, Col } from 'antd';
 
+interface Props {
+    isPlaying: Boolean;
+    toggleVideo: any; //Function called onPlay/Pause
+    getCurrentTime: Function;
+    videoLength: number;
+    seekTo: Function;
+}
 
-const useInterval = (callback, delay) => {
-    const savedCallback = useRef();
+const useInterval = (callback: Function, delay) => {
+    const savedCallback = useRef<Function>();
+    savedCallback.current = (e) => (e);
 
     // Remember the latest callback.
     useEffect(() => {
@@ -24,10 +32,10 @@ const useInterval = (callback, delay) => {
 
 const width = 635;
 
-const Control = (props) => {
+const Control: React.FC<Props> = (props) => {
 
     const { isPlaying, toggleVideo, getCurrentTime, videoLength, seekTo } = props;
-    const [time, setTime] = useState(getCurrentTime());
+    const [time, setTime] = useState<number>(getCurrentTime());
     let percent = time / videoLength * 100;
 
     let scrubberStyle = {

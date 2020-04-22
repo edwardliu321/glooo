@@ -1,7 +1,7 @@
 import React, { Component } from 'react';
 import {BrowserRouter as Router, Switch, Route} from "react-router-dom";
-import Player from './components/Player';
-import Home from './components/Home';
+import Player from './components/Video/Player.tsx';
+import Home from './components/Home.tsx';
 import 'antd/dist/antd.css'
 
 const App = (props) => {
