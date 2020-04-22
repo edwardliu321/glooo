@@ -11,10 +11,10 @@ const axios = require('axios')
 const Home = () => {
 
     const history = useHistory();
-    const [modalVisible, setModalVisible] = useState(false);
-    const [roomId, setRoomId] = useState("");
-    const [roomError, setRoomError] = useState(false);
-    
+    const [modalVisible, setModalVisible] = useState<boolean>(false);
+    const [roomId, setRoomId] = useState<string>("");
+    const [roomError, setRoomError] = useState<boolean>(false);
+
     const openModal = () => {
         setModalVisible(true);   
     }
