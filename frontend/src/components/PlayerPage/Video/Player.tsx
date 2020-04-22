@@ -29,7 +29,7 @@ const Player : React.FC<Props> = (props) => {
 
     //******** States and Refs *********/
 
-    const [isPlaying, setPlaying] = useState(null);
+    const [isPlaying, setPlaying] = useState<boolean>(null);
     const [userList, setUsers] = useState<User[]>([]);
     
     let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false});
