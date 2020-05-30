@@ -90,9 +90,10 @@ io.on('connection', (socket) => {
         if(!rooms[roomId]) resources.createRoom(roomId);
         let room = rooms[roomId];
         room.count++;
+        let name = data.name || 'User ' + room.count;
         let user = {
             id: userId,
-            name: 'User ' + room.count,
+            name: name,
             host : false
         };
         if (room.users.length > 0) {
@@ -116,7 +117,8 @@ io.on('connection', (socket) => {
             users: room.users,
             host: user.host,
             userId: userId,
-            videoId: room.videoId
+            videoId: room.videoId,
+            name: name
         };
         fn(response);
     });
@@ -152,12 +154,19 @@ io.on('connection', (socket) => {
         socket.to(roomId).broadcast.emit('seek', data);
         console.log('seek in ' + roomId);
     });
-    
     socket.on('cuevideo', (data) => {
         rooms[roomId].videoId = data.videoId;
         socket.to(roomId).broadcast.emit('cuevideo', data);
         console.log('switch to video: ' + data.videoId);
     });
+
+    //Chat
+    socket.on('chat', (data) => {
+        data.id = generateID(8);
+        io.in(roomId).emit('chat', data);
+        console.log(`Chat in ${roomId}: ${data.author.name} + ${data.content}`);
+    });
+
     
     socket.on('disconnect', () => {
         //user leaves
