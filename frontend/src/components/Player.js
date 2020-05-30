@@ -24,11 +24,11 @@ const Player = (props) => {
     
     let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false, actionQueue:{} });
 
-    let { socket, player, actionQueue }= ref.current;
+    let { socket, player, actionQueue}= ref.current;
     document.test = actionQueue;
     
-    function pushAction(action, data){
-        actionQueue[action] = data;
+    function pushAction(action){
+        actionQueue[action] = true;
     }
 
     function popAction(action){
