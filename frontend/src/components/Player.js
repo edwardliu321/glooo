@@ -1,19 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
-import classes from './Player.module.css'
-import Control from './Control'
-import { message, Button, Row, Col } from 'antd'
-import config from '../config'
+import { message, Button, Row, Col, Input, Card, Comment, Form } from 'antd'
+import config from '../config';
+import { UserOutlined } from '@ant-design/icons';
+import If from '../helpers/If';
 
 const opts = {
-    height: '390',
-    width: '640',
+    width: '853',
+    height: '480',
     playerVars: {
-        autoplay: 1,
-        controls: 0
+        autoplay: 1
     }
 }
+
+
 //const socketEndpoint = 'http://localhost:8080/';
 //const socketEndpoint = 'https://glooo.io/';
 const socketEndpoint = config.socketEndpoint;
@@ -21,17 +22,59 @@ const socketEndpoint = config.socketEndpoint;
 const Player = (props) => {
 
     //******** States and Refs *********/
-
-    const [isPlaying, setPlaying] = useState(null);
+    const [name, setName] = useState(null);
     const [userList, setUsers] = useState([]);
-    
-    let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false});
+    const [chatList, setChatList] = useState([]);
+    const [chatBoxText, setChatBoxText] = useState(null);
+    const [currentVideoId, setCurrentVideoId] = useState(null);
+    const [videoIdText, setVideoIdText] = useState(null);
+    let ref = useRef({ socket: null, player: null, userId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null });
+    let { socket, player, actionQueue } = ref.current;
 
-    let socket = ref.current.socket;
-    let player = ref.current.player;
+    document.test = actionQueue;
+    function pushAction(action) {
+        actionQueue[action] = true;
+    }
+
+    function popAction(action) {
+        //console.log('try pop ' + action);
+        if (actionQueue[action]) {
+            delete actionQueue[action];
+            return true;
+        }
+        return false
+    }
+
+    function parseVideoId() {
+        let id = videoIdText;
+        try {
+            let url = new URL(id);
+            id = url.searchParams.get("v") || id;
+        }
+        catch{ }
+        finally {
+            setVideoIdText(id);
+        }
+    }
+
+    function sendChat() {
+        if (!chatBoxText) return;
+        let chatData = {
+            content: chatBoxText,
+            author: name
+        };
+        socket.emit('chat', chatData);
+        setChatBoxText(null);
+    }
+
+    function chatKeyDown(e){
+        if(e.which === 13 && !e.shiftKey){
+            e.preventDefault(); 
+            sendChat();
+        } 
+    }
 
     //******** Socket Logic *********/
-    
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
@@ -47,17 +90,18 @@ const Player = (props) => {
                 console.log("join data ", data);
                 ref.current.userId = data.userId;
                 setUsers(data.users);
+                setName(data.name);
                 if (data.host) {
                     ref.current.isHost = true;
                     ref.current.requireTime = false;
                     //pauseVideo();
                     //if(data.videoId){
-                        //default
-                        //cueVideoById(data.videoId, false);
+                    //default
+                    //cueVideoById(data.videoId, false);
                     //}
                 }
                 else {
-                    if(data.videoId) 
+                    if (data.videoId)
                         cueVideoById(data.videoId, false);
                     else
                         ref.current.requireTime = false;
@@ -69,32 +113,35 @@ const Player = (props) => {
 
         //** Syncronizing Players **/
         socket.on('pause', () => {
-            pauseVideo(false);
+            console.log('recieve pause');
+            if (player.getPlayerState() !== YouTube.PlayerState.PAUSED) {
+                pushAction('pause');
+                pauseVideo();
+            }
+            else {
+                console.log('ignored pause');
+            }
         });
         socket.on('play', (data) => {
-            playVideo(data.time, false);
-        });
-        socket.on('seek', (data) => {
-            seekTo(data.time, false);
-        });
-        socket.on('seekpause', (data) => {
-            seekTo(data.time, false);
-            pauseVideo();
+            console.log('recieve play');
+            let { time } = data;
+            pushAction(`play`);
+            playVideo(time);
         });
 
         //** Handling Video Changes **/
         socket.on('cuevideo', (data) => {
-            cueVideoById(data.videoId,false);
+            cueVideoById(data.videoId, false);
         })
 
         //** Handling User Join/Leave **/
         socket.on('timerequest', (data) => {
             console.log("request");
-            socket.emit('timeresponse', { 
+            socket.emit('timeresponse', {
                 id: data.id,
-                isPlaying: player.getPlayerState() === 1, 
+                isPlaying: player.getPlayerState() === 1,
                 time: player.getCurrentTime(),
-                videoId: ref.current.videoId
+                videoId: currentVideoId
             })
         })
         socket.on('userjoin', (data) => {
@@ -111,128 +158,175 @@ const Player = (props) => {
             })
             message.warning("A user has left.")
         })
+
+        //chat
+        socket.on('chat', (data) => {
+            setChatList((chatlist) => {
+                ref.current.chatBottom.scrollIntoView({ behavior: 'smooth' });
+                return [...chatlist, data];
+            });
+        });
     }
 
 
     //******** Player Controls Functions *********/
 
-    const playerBtnClick = () => {
-        let playerState = player.getPlayerState();
-        if (playerState === 1) {
-            pauseVideo(true);
-        }
-        else {
-            playVideo(null, true);
-        }
-    }
     const cueVideoById = (videoId, emit) => {
-        if (videoId === ref.current.videoId) return;
-        console.log(videoId);
+        if (!videoId || videoId === currentVideoId) return;
         player.loadVideoById(videoId);
-        // console.log('duration ', player.getDuration());
-        if(emit){
-            socket.emit('cuevideo', {videoId});
+        setCurrentVideoId(videoId);
+        if (emit) {
+            socket.emit('cuevideo', { videoId });
         }
     }
 
     const pauseVideo = (emit) => {
         player.pauseVideo();
-        setPlaying(false);
-        if (emit) {
-            socket.emit('pause');
-        }
     }
 
-    const playVideo = (time, emit) => {
-        if (time) player.seekTo(time);
+    const playVideo = (time) => {
+        player.seekTo(time);
         player.playVideo();
-        setPlaying(true);
-        if (emit) {
-            socket.emit('play', { time: getCurrentTime() });
-        }
     }
 
     const seekTo = (time, emit) => {
         player.seekTo(time)
-        if (emit) {
-            socket.emit('seek', { time });
-        }
     }
 
     const getCurrentTime = () => {
         return player.getCurrentTime();
     }
 
-    const playerStateChanged =(e) =>{
-        console.log("state change: ", player.getDuration());
-        console.log("vidId: ", player.getVideoData()['video_id']);
+    const playerStateChanged = (e) => {
         let x = player.getDuration();
         let videoId = player.getVideoData()['video_id'];
-        console.log(ref.current.videoId);
-        if(x > 0 && ref.current.videoId !== videoId){
+        let playerState = player.getPlayerState();
+
+        if (x > 0 && currentVideoId !== videoId) {
             console.log('video load');
-            
-            ref.current.videoId = videoId;
-            if(ref.current.requireTime) { 
-                socket.emit('timerequest', { id: ref.current.userId} );
+
+            setCurrentVideoId(videoId);
+            if (ref.current.requireTime) {
+                socket.emit('timerequest', { id: ref.current.userId });
                 ref.current.requireTime = false;
             }
             //If video changes and already in room
-            else{
-                setPlaying(null); //force state change
+            else {
                 pauseVideo();
                 seekTo(0);
             }
         }
+        else if (playerState === YouTube.PlayerState.PLAYING || playerState === YouTube.PlayerState.PAUSED) {
+            console.log('before------------------');
+            console.log(actionQueue);
+            if (playerState === YouTube.PlayerState.PLAYING) {
+                //let time = player.getCurrentTime();
+                if (!popAction(`play`)) {
+                    console.log('emit play');
+                    socket.emit('play', { time: getCurrentTime() });
+                }
+            }
+            else if (playerState === YouTube.PlayerState.PAUSED) {
+                if (!popAction(`pause`)) {
+                    console.log('emit pause');
+                    socket.emit('pause');
+                }
+            }
+            console.log('after-------------------');
+            console.log(actionQueue);
+        }
+
+
     }
     //******** Conditional Renders *********/
 
-    let users = userList.map((user) => {
-        return (
-            <li key={user.id}>
-                {user.name}
-                { ref.current.userId === user.id ? '*' : '' }
-            </li>
-        )
-    })
-    let control = null;
-    let youtube = null;
-
-    if (player) {
-        control = (
-            <Control
-                isPlaying={isPlaying}
-                toggleVideo={playerBtnClick}
-                videoLength={player.getDuration()}
-                getCurrentTime={getCurrentTime}
-                seekTo={seekTo}
-            >
-            </Control>
-        )
-    }
+    // let users = userList.map((user) => {
+    //     return (
+    //         <li key={user.id}>
+    //             {user.name}
+    //             {ref.current.userId === user.id ? '*' : ''}
+    //         </li>
+    //     )
+    // })
     return (
         <>
-            <div>
-                <input onChange={(e)=>ref.current.newVideoId=e.target.value}></input>
-                <button onClick={()=>cueVideoById(ref.current.newVideoId,true)}>Change Video</button>
-            </div>
-            <div className="player">
-                <YouTube
-                    opts={opts}
-                    onReady={playerReady}
-                    onStateChange={playerStateChanged} />
- 
-                <Row>
-                    <Col span={10}>
-                        {control}
-                    </Col>
-                </Row>
+            <Row>
+                <Col span={4} />
+                <Col span={15}>
+                    <Row style={{ marginTop: "70px" }}>
+                        <Col span={20}>
+                            <Input.Search
+                                placeholder="Video Link"
+                                value={videoIdText}
+                                onBlur={parseVideoId}
+                                onChange={(e) => setVideoIdText(e.target.value)}
+                                onSearch={() => cueVideoById(videoIdText, true)}
+                                size="large"
+                            />
+                        </Col>
+                        <Col span={4} />
+                    </Row>
+                    <div style={{ display: currentVideoId ? '' : 'none' }}>
+                        <Row style={{ marginTop: "50px" }}>
+                            <Col span={24}>
+                                <YouTube
+                                    opts={opts}
+                                    onReady={playerReady}
+                                    onStateChange={playerStateChanged}
+                                />
+                            </Col>
+                        </Row>
+                        <Row>
+                            <Col span={24}>
+                                <UserOutlined /> {userList.length}
+                            </Col>
+                        </Row>
+                    </div>
+                </Col>
+                <Col span={5} >
+                    <Card title="Glooo Chat" extra={<a href="#">Users</a>} style={{ height: '100vh' }} >
+                        <div style={{ overflowY: 'scroll', height: '60vh' }} className="hideScroll">
+                            {
+                                chatList.map(c =>
+                                    <Comment
+                                        key={c.id}
+                                        author={c.author}
+                                        content={
+                                            <p>
+                                                {c.content}
+                                            </p>
+                                        }
+                                    />
+                                )
+                            }
+                            <br></br>
+                            <br></br>
+                            <br></br>
+                            <br></br>
+                            <br></br>
+                            <div ref={el => ref.current.chatBottom = el}>
+                            </div>
+                        </div>
+                        <div style={{ marginRight: '20px' }}>
+                            <Form.Item>
+                                <Input.TextArea
+                                    onChange={e => setChatBoxText(e.target.value)}
+                                    value={chatBoxText}
+                                    placeholder={'Say something!'}
+                                    rows={2} maxLength={200} style={{ resize: 'none' }} 
+                                    onKeyDown={chatKeyDown}    
+                                />
+                            </Form.Item>
+                            <Form.Item>
+                                <Button onClick={(sendChat)} type="primary" style={{ float: 'right' }}>
+                                    Chat
+                            </Button>
+                            </Form.Item>
+                        </div>
+                    </Card>
+                </Col>
+            </Row>
 
-                <h4>Count: {userList.length}</h4>
-                <ul>
-                    {users}
-                </ul>
-            </div>
         </>
     )
 }
