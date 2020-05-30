@@ -40,6 +40,7 @@ const Player = (props) => {
         return false
     }
 
+
     //******** Socket Logic *********/
     const playerReady = (event) => {
         ref.current.player = event.target;
@@ -79,8 +80,13 @@ const Player = (props) => {
         //** Syncronizing Players **/
         socket.on('pause', () => {
             console.log('recieve pause');
-            pushAction('pause');
-            pauseVideo();
+            if (player.getPlayerState() !== YouTube.PlayerState.PAUSED){
+                pushAction('pause');
+                pauseVideo();
+            }
+            else{
+                console.log('ignored pause');
+            }
         });
         socket.on('play', (data) => {
             console.log('recieve play');
@@ -123,15 +129,6 @@ const Player = (props) => {
 
     //******** Player Controls Functions *********/
 
-    const playerBtnClick = () => {
-        let playerState = player.getPlayerState();
-        if (playerState === 1) {
-            pauseVideo(true);
-        }
-        else {
-            playVideo(null, true);
-        }
-    }
     const cueVideoById = (videoId, emit) => {
         if (videoId === ref.current.videoId) return;
         console.log(videoId);
