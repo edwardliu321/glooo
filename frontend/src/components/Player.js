@@ -1,17 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
-import classes from './Player.module.css'
-import Control from './Control'
 import { message, Button, Row, Col } from 'antd'
-import config from '../config'
+import config from '../config';
 
 const opts = {
     height: '390',
     width: '640',
     playerVars: {
-        autoplay: 1,
-        controls: 0
+        autoplay: 1
     }
 }
 //const socketEndpoint = 'http://localhost:8080/';
@@ -25,13 +22,25 @@ const Player = (props) => {
     const [isPlaying, setPlaying] = useState(null);
     const [userList, setUsers] = useState([]);
     
-    let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false});
+    let ref = useRef({ socket: null, player: null, userId: null, videoId: null, newVideoId: null, requireTime: true, isHost: false, actionQueue:{} });
 
-    let socket = ref.current.socket;
-    let player = ref.current.player;
+    let { socket, player, actionQueue }= ref.current;
+    document.test = actionQueue;
+    
+    function pushAction(action, data){
+        actionQueue[action] = data;
+    }
+
+    function popAction(action){
+        //console.log('try pop ' + action);
+        if (actionQueue[action]){
+            delete actionQueue[action];
+            return true;
+        }
+        return false
+    }
 
     //******** Socket Logic *********/
-    
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
@@ -69,19 +78,17 @@ const Player = (props) => {
 
         //** Syncronizing Players **/
         socket.on('pause', () => {
-            pauseVideo(false);
-        });
-        socket.on('play', (data) => {
-            playVideo(data.time, false);
-        });
-        socket.on('seek', (data) => {
-            seekTo(data.time, false);
-        });
-        socket.on('seekpause', (data) => {
-            seekTo(data.time, false);
+            console.log('recieve pause');
+            pushAction('pause');
             pauseVideo();
         });
-
+        socket.on('play', (data) => {
+            console.log('recieve play');
+            let {time} = data;
+            pushAction(`play`);
+            playVideo(time);
+        });
+        
         //** Handling Video Changes **/
         socket.on('cuevideo', (data) => {
             cueVideoById(data.videoId,false);
@@ -137,26 +144,15 @@ const Player = (props) => {
 
     const pauseVideo = (emit) => {
         player.pauseVideo();
-        setPlaying(false);
-        if (emit) {
-            socket.emit('pause');
-        }
     }
 
-    const playVideo = (time, emit) => {
-        if (time) player.seekTo(time);
+    const playVideo = (time) => {
+        player.seekTo(time);
         player.playVideo();
-        setPlaying(true);
-        if (emit) {
-            socket.emit('play', { time: getCurrentTime() });
-        }
     }
 
     const seekTo = (time, emit) => {
         player.seekTo(time)
-        if (emit) {
-            socket.emit('seek', { time });
-        }
     }
 
     const getCurrentTime = () => {
@@ -164,11 +160,10 @@ const Player = (props) => {
     }
 
     const playerStateChanged =(e) =>{
-        console.log("state change: ", player.getDuration());
-        console.log("vidId: ", player.getVideoData()['video_id']);
         let x = player.getDuration();
         let videoId = player.getVideoData()['video_id'];
-        console.log(ref.current.videoId);
+        let playerState = player.getPlayerState();
+        
         if(x > 0 && ref.current.videoId !== videoId){
             console.log('video load');
             
@@ -184,6 +179,27 @@ const Player = (props) => {
                 seekTo(0);
             }
         }
+        else if (playerState === YouTube.PlayerState.PLAYING || playerState === YouTube.PlayerState.PAUSED){
+            console.log('before------------------');
+            console.log(actionQueue);
+            if (playerState === YouTube.PlayerState.PLAYING){
+                //let time = player.getCurrentTime();
+                if (!popAction(`play`)){
+                    console.log('emit play');
+                    socket.emit('play', { time: getCurrentTime() });
+                }
+            }
+            else if (playerState === YouTube.PlayerState.PAUSED){
+                if (!popAction(`pause`)){
+                    console.log('emit pause');
+                    socket.emit('pause');
+                }
+            }
+            console.log('after-------------------');
+            console.log(actionQueue);
+        }
+
+
     }
     //******** Conditional Renders *********/
 
@@ -198,18 +214,6 @@ const Player = (props) => {
     let control = null;
     let youtube = null;
 
-    if (player) {
-        control = (
-            <Control
-                isPlaying={isPlaying}
-                toggleVideo={playerBtnClick}
-                videoLength={player.getDuration()}
-                getCurrentTime={getCurrentTime}
-                seekTo={seekTo}
-            >
-            </Control>
-        )
-    }
     return (
         <>
             <div>
@@ -220,14 +224,9 @@ const Player = (props) => {
                 <YouTube
                     opts={opts}
                     onReady={playerReady}
-                    onStateChange={playerStateChanged} />
+                    onStateChange={playerStateChanged} 
+                />
  
-                <Row>
-                    <Col span={10}>
-                        {control}
-                    </Col>
-                </Row>
-
                 <h4>Count: {userList.length}</h4>
                 <ul>
                     {users}
