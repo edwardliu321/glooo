@@ -45,15 +45,15 @@ const Player = (props) => {
         return false
     }
 
-    function parseVideoId() {
-        let id = videoIdText;
+    function parseVideoId(search) {
+        let id = search;
         try {
             let url = new URL(id);
             id = url.searchParams.get("v") || id;
         }
         catch{ }
         finally {
-            setVideoIdText(id);
+            return id;
         }
     }
 
@@ -171,12 +171,19 @@ const Player = (props) => {
 
     //******** Player Controls Functions *********/
 
-    const cueVideoById = (videoId, emit) => {
-        if (!videoId || videoId === currentVideoId) return;
+    const cueVideoById = (videoIdSearch, emit) => {
+        console.log(videoIdSearch)
+        if (!videoIdSearch ) return;
+        setVideoIdText(videoIdSearch);
+        let videoId = parseVideoId(videoIdSearch);
+        console.log(videoId);
+        console.log(currentVideoId);
+
+        if (videoId === currentVideoId) return;
         player.loadVideoById(videoId);
         setCurrentVideoId(videoId);
         if (emit) {
-            socket.emit('cuevideo', { videoId });
+            socket.emit('cuevideo', { videoId:videoIdSearch });
         }
     }
 
@@ -185,7 +192,7 @@ const Player = (props) => {
     }
 
     const playVideo = (time) => {
-        player.seekTo(time);
+        if (time !== null && time !== undefined) player.seekTo(time);
         player.playVideo();
     }
 
@@ -235,8 +242,6 @@ const Player = (props) => {
             console.log('after-------------------');
             console.log(actionQueue);
         }
-
-
     }
     //******** Conditional Renders *********/
 
@@ -254,17 +259,16 @@ const Player = (props) => {
                 <Col span={4} />
                 <Col span={15}>
                     <Row style={{ marginTop: "70px" }}>
-                        <Col span={20}>
+                        <Col span={17}>
                             <Input.Search
-                                placeholder="Video Link"
+                                placeholder="Search"
                                 value={videoIdText}
-                                onBlur={parseVideoId}
                                 onChange={(e) => setVideoIdText(e.target.value)}
                                 onSearch={() => cueVideoById(videoIdText, true)}
                                 size="large"
                             />
                         </Col>
-                        <Col span={4} />
+                        {/* <Col span={8} /> */}
                     </Row>
                     <div style={{ display: currentVideoId ? '' : 'none' }}>
                         <Row style={{ marginTop: "50px" }}>
@@ -285,7 +289,7 @@ const Player = (props) => {
                 </Col>
                 <Col span={5} >
                     <Card title="Glooo Chat" extra={<a href="#">Users</a>} style={{ height: '100vh' }} >
-                        <div style={{ overflowY: 'scroll', height: '60vh' }} className="hideScroll">
+                        <div style={{ overflowY: 'scroll', height: '75vh' }} className="hideScroll">
                             {
                                 chatList.map(c =>
                                     <Comment
