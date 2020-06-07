@@ -17,6 +17,7 @@ const opts = {
 //const socketEndpoint = 'http://localhost:8080/';
 //const socketEndpoint = 'https://glooo.io/';
 const socketEndpoint = config.socketEndpoint;
+const urlRegex = new RegExp(/[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)?/gi);
 
 const Player = (props) => {
 
@@ -71,6 +72,10 @@ const Player = (props) => {
             e.preventDefault();
             sendChat();
         }
+    }
+
+    function IsUrl(content){
+        return content.match(urlRegex);
     }
 
     //******** Socket Logic *********/
@@ -292,7 +297,17 @@ const Player = (props) => {
                                             author={c.author}
                                             content={
                                                 <p>
-                                                    {c.content}
+                                                    {
+                                                        c.content.split(' ').map(word => {
+                                                            let modified = IsUrl(word) ? (<a target='_blank' href={word}>{word}</a>) : word;
+                                                            return (
+                                                                <>
+                                                                    {modified}
+                                                                    {' '}
+                                                                </>
+                                                            );
+                                                        })
+                                                    }
                                                 </p>
                                             }
                                         />
