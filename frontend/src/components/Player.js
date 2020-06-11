@@ -4,6 +4,7 @@ import SocketIOClient from 'socket.io-client'
 import { message, Button, Row, Col, Input, Card, Comment, Form, Spin } from 'antd'
 import config from '../config';
 import { UserOutlined, LoadingOutlined} from '@ant-design/icons';
+import Linkify from 'react-linkify';
 
 const opts = {
     width: '853',
@@ -243,16 +244,7 @@ const Player = (props) => {
             console.log(actionQueue);
         }
     }
-    //******** Conditional Renders *********/
 
-    // let users = userList.map((user) => {
-    //     return (
-    //         <li key={user.id}>
-    //             {user.name}
-    //             {ref.current.userId === user.id ? '*' : ''}
-    //         </li>
-    //     )
-    // })
     return (
         <>
             <Spin spinning={loading} indicator={<LoadingOutlined style={{ fontSize: 50 }} spin />}>
@@ -296,19 +288,17 @@ const Player = (props) => {
                                             key={c.id}
                                             author={c.author}
                                             content={
-                                                <p>
-                                                    {
-                                                        c.content.split(' ').map(word => {
-                                                            let modified = IsUrl(word) ? (<a target='_blank' href={word}>{word}</a>) : word;
-                                                            return (
-                                                                <>
-                                                                    {modified}
-                                                                    {' '}
-                                                                </>
-                                                            );
-                                                        })
+                                                <Linkify 
+                                                    componentDecorator={(href, text, key) => (
+                                                        <a href={href} key={key} target="_blank">
+                                                            {text}
+                                                        </a>
+                                                    )
                                                     }
-                                                </p>
+                                                >
+                                                    {c.content}
+                                                </Linkify>
+
                                             }
                                         />
                                     )
