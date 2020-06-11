@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
-import { message, Button, Row, Col, Input, Card, Comment, Form, Spin } from 'antd'
+import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Timeline } from 'antd'
 import config from '../config';
 import { UserOutlined, LoadingOutlined} from '@ant-design/icons';
 import Linkify from 'react-linkify';
@@ -18,7 +18,6 @@ const opts = {
 //const socketEndpoint = 'http://localhost:8080/';
 //const socketEndpoint = 'https://glooo.io/';
 const socketEndpoint = config.socketEndpoint;
-const urlRegex = new RegExp(/[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)?/gi);
 
 const Player = (props) => {
 
@@ -30,6 +29,8 @@ const Player = (props) => {
     const [currentVideoId, setCurrentVideoId] = useState(null);
     const [videoIdText, setVideoIdText] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [rightTabKey, setRightTabKey] = useState('chat');
+    const [timelineEvents, setTimelineEvents] = useState([]);
     let ref = useRef({ socket: null, player: null, userId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null });
     let { socket, player, actionQueue } = ref.current;
 
@@ -75,9 +76,21 @@ const Player = (props) => {
         }
     }
 
-    function IsUrl(content){
-        return content.match(urlRegex);
-    }
+    const tabList = [
+        {
+          key: 'chat',
+          tab: 'Chat',
+        },
+        {
+          key: 'timeline',
+          tab: 'Timeline',
+        },
+      ];
+
+    function onTabChange(key){
+        ref.current.chatBottom.scrollIntoView({ behavior: 'smooth' });
+        setRightTabKey(key);
+    };
 
     //******** Socket Logic *********/
     const playerReady = (event) => {
@@ -245,6 +258,41 @@ const Player = (props) => {
         }
     }
 
+
+    const chatContent = {
+        'chat':(
+            chatList.map(c =>
+                <Comment
+                    key={c.id}
+                    author={c.author}
+                    content={
+                        <p>
+                            <Linkify 
+                                componentDecorator={(href, text, key) => (
+                                    <a href={href} key={key} target="_blank">
+                                        {text}
+                                    </a>
+                                )
+                                }
+                            >
+                                {c.content}
+                            </Linkify>
+                        </p>
+
+                    }
+                />
+            )
+        ),
+        'timeline':(
+            <Timeline>
+                <Timeline.Item>Create a services site 2015-09-01</Timeline.Item>
+                <Timeline.Item>Solve initial network problems 2015-09-01</Timeline.Item>
+                <Timeline.Item>Technical testing 2015-09-01</Timeline.Item>
+                <Timeline.Item>Network problems being solved 2015-09-01</Timeline.Item>
+            </Timeline>
+        )
+    }
+
     return (
         <>
             <Spin spinning={loading} indicator={<LoadingOutlined style={{ fontSize: 50 }} spin />}>
@@ -272,37 +320,25 @@ const Player = (props) => {
                                     />
                                 </Col>
                             </Row>
-                            <Row>
-                                <Col span={24}>
-                                    <UserOutlined /> {userList.length}
-                                </Col>
-                            </Row>
                         </div>
                     </Col>
                     <Col span={5} >
-                        <Card title="Glooo Chat" extra={<a href="#">Users</a>} style={{ height: '100vh' }} >
+                        <Card title="Glooo Chat" 
+                        extra={
+                            <>
+                                    <Button size='large' shape='round'>
+                                        <UserOutlined />
+                                        {userList.length}
+                                    </Button>
+                            </>
+                        } 
+                        tabList={tabList}
+                        onTabChange={onTabChange}
+                        style={{ height: '100vh' }} >
                             <div style={{ overflowY: 'scroll', height: '75vh' }} className="hideScroll">
-                                {
-                                    chatList.map(c =>
-                                        <Comment
-                                            key={c.id}
-                                            author={c.author}
-                                            content={
-                                                <Linkify 
-                                                    componentDecorator={(href, text, key) => (
-                                                        <a href={href} key={key} target="_blank">
-                                                            {text}
-                                                        </a>
-                                                    )
-                                                    }
-                                                >
-                                                    {c.content}
-                                                </Linkify>
-
-                                            }
-                                        />
-                                    )
-                                }
+                                
+                                {chatContent[rightTabKey]}
+                                
                                 <br></br>
                                 <br></br>
                                 <br></br>
