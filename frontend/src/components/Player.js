@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
-import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List } from 'antd'
+import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider } from 'antd'
 import config from '../config';
 import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import Linkify from 'react-linkify';
+import './Player.css';
 
 const opts = {
     width: '853',
@@ -29,6 +30,7 @@ const Player = (props) => {
     const [videoIdText, setVideoIdText] = useState(null);
     const [loading, setLoading] = useState(true);
     const [videoList, setVideoList] = useState([]);
+    const [loadingVideoList, setLoadingVideoList] = useState(false);
     const [videoBrowseSearch, setVideoBrowseSearch] = useState();
     const [showBrowseVideo, setShowBrowseVideo] = useState(false);
     let ref = useRef({ socket: null, player: null, userId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
@@ -77,33 +79,44 @@ const Player = (props) => {
     }
 
     function handleSearch(){
-        setVideoList([{},{},{},{},{},{},{},{},{},{},{},{}]);
+        if (!videoBrowseSearch || !videoBrowseSearch.trim()) return;
+        setLoadingVideoList(true);
         axios.get(`${serverEndpoint}/videos/search?q=${videoBrowseSearch}`)
         .then(response => {
             let { items, nextPageToken, totalResults } = response.data;
-            setVideoList(items);
+            setVideoList(items.filter(x => x.videoId));
             ref.current.videoSearchData = {
                 q: videoBrowseSearch,
                 nextPageToken,
                 totalResults
             };
+        }).catch(e => {
+            console.log(e);
+        }).then(() => {
+            setLoadingVideoList(false);
         })
     }
 
-    function loadMoreVideos(){
-        console.log('load more');
-        setVideoList(old => {
-            return [...old, ...old];
-        });
-        return;
-        axios.get(`${serverEndpoint}/videos/search?q=${ref.current.videoSearchData.q}&pageToken=${ref.current.videoSearchData.nextPageToken}`)
-        .then(response => {
-            let { items, nextPageToken } = response.data;
-            setVideoList(old => {
-                return [...old, ...items];
-            });
-            ref.current.videoSearchData.nextPageToken = nextPageToken;
-        });
+    // function loadMoreVideos(){
+    //     console.log('load more');
+    //     setVideoList(old => {
+    //         return [...old, ...old];
+    //     });
+    //     return;
+    //     axios.get(`${serverEndpoint}/videos/search?q=${ref.current.videoSearchData.q}&pageToken=${ref.current.videoSearchData.nextPageToken}`)
+    //     .then(response => {
+    //         let { items, nextPageToken } = response.data;
+    //         setVideoList(old => {
+    //             return [...old, ...items];
+    //         });
+    //         ref.current.videoSearchData.nextPageToken = nextPageToken;
+    //     });
+    // }
+
+    function selectBrowseVideo(e, videoId){
+        e.preventDefault();
+        setShowBrowseVideo(false);
+            cueVideoById(videoId, true);
     }
 
     //******** Socket Logic *********/
@@ -396,32 +409,39 @@ const Player = (props) => {
                     />
                 </Col>
             </Row>
+
+            {
+                videoList.length > 0 && <Divider />
+            }
             <Row gutter={24}>
                 <Col span={24}>
                     <List
                         itemLayout="vertical"
                         dataSource={videoList}
+                        loading={loadingVideoList}
+                        locale={{emptyText:' '}}
+                        size="large"
                         renderItem={item => (
+                            <>
+                        <a href='#' style={{color:'inherit'}} onClick={e => selectBrowseVideo(e, item.videoId)}>
                         <List.Item
-                            key={item.title}
+                            key={item.videoId}
                             extra={
-                            <img
-                                width={250}
-                                src={item.videoThumbnail}
-                            />
+                                <img
+                                    width={250}
+                                    src={item.videoThumbnail}
+                                />
                             }
                         >
                             <List.Item.Meta
                             avatar={<Avatar src={item.channelThumbnail} />}
-                            title={
-                                <>
-                                    {item.title}
-                                </>
-                            }
+                            title={item.title}
                             description={item.channelTitle}
                             />
-                            {item.description}
+                            <p>{item.description.substring(0,100)}{item.description.length > 100 ? '...' : ''}</p>
                         </List.Item>
+                        </a>
+                        </>
                         )}
                     >
                     </List>
