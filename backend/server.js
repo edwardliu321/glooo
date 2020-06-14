@@ -3,6 +3,7 @@ const cors = require('cors');
 const path = require('path');
 const app = express();
 const youtube = require('./services/youtube');
+const { response } = require('express');
 
 //config
 app.use(cors());
@@ -13,11 +14,7 @@ const server = app.listen(8080, () => {
     console.log('socket listening on port 8080')
 });
 
-app.use(express.static(path.join(__dirname, '/../frontend/build')));
-app.get('*',(req,res) => {
-    console.log(__dirname);
-    res.sendFile(path.join(__dirname, '/../frontend/build', 'index.html'));
-});
+
 app.listen(5000);
 const io = require('socket.io')(server);
 
@@ -41,8 +38,19 @@ const resources = {
             videoId: null//'2g811Eo7K8U'
         };
     },
-   
 }
+
+app.get('/videos/search', (req, res) => {
+    let { q, pageToken } = req.query;
+    youtube.search(q, pageToken).then(response => {
+        res.send(response);
+    });
+})
+app.use(express.static(path.join(__dirname, '/../frontend/build')));
+app.get('*',(req,res) => {
+    console.log(__dirname);
+    res.sendFile(path.join(__dirname, '/../frontend/build', 'index.html'));
+});
 
 app.post('/room/create', (req, res) => {
     let roomId = null;

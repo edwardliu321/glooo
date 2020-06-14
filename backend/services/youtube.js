@@ -2,35 +2,47 @@ const { google } = require('googleapis');
 require('dotenv').config();
 
 const KEY = process.env.YOUTUBE_KEY;
+const CACHE = {
 
-const search = (q) => {
+}
+
+//CLEAR EVERY HOUR
+setInterval(() => {
+    CACHE = {}
+}, 60*60000);
+
+const search = (q, pageToken) => {
     return new Promise((resolveSearch) => {
         google.youtube('v3').search.list({
             key: KEY,
             part: 'snippet',
             q: q,
             maxResults: 5,
+            type: "video",
+            pageToken: pageToken
         }).then(response => {
-            let result = response.data.items.filter(x => x.id.videoId).map((x) => {
-                return new Promise((resolveChannel) => {
-                    getChannel(x.snippet.channelId).then(channel => {
-                        let data = {
-                            videoId: x.id.videoId,
-                            title: x.snippet.title,
-                            channelTitle: x.snippet.channelTitle,
-                            videoThumbnail: x.snippet.thumbnails.default.url,
-                            channelThumbnail: channel.channelThumbnail
-                        };
-                        resolveChannel(data);
-                    })
-                })
-            })
-            resolveSearch(Promise.all(result));
-        })
-    })
+            let channelIds = response.data.items.map(x => x.snippet.channelId).join(',');
+            getChannels(channelIds).then(channels => {
+                let items = response.data.items.map((x) => {
+                    return {
+                        videoId: x.id.videoId,
+                        title: x.snippet.title,
+                        description: x.snippet.description,
+                        channelTitle: x.snippet.channelTitle,
+                        videoThumbnail: x.snippet.thumbnails.medium.url,
+                        channelThumbnail: channels[x.snippet.channelId].channelThumbnail
+                    };
+                });
+
+                let { nextPageToken } = response.data;
+                let { totalResults } = response.data.pageInfo;
+                resolveSearch({ items, nextPageToken, totalResults });
+            });
+        });
+    });
 }
 
-const getChannel = (channelId) => {
+const getChannels = (channelId) => {
     return new Promise((resolve) => {
         google.youtube('v3').channels.list({
             key: KEY,
@@ -38,13 +50,14 @@ const getChannel = (channelId) => {
             part: 'snippet',
             maxResults: 1
         }).then(response => {
-            let result = response.data.items.map(x => {
-                return {
+            let channels = {};
+            response.data.items.forEach(x => {
+                channels[x.id] = {
+                    channelId: x.id,
                     channelThumbnail: x.snippet.thumbnails.default.url
                 }
             });
-            let channel = result[0];
-            resolve(channel);
+            resolve(channels);
         })
     })
 }
@@ -52,3 +65,5 @@ const getChannel = (channelId) => {
 module.exports = {
     search
 }
+
+search('pewdie').then(console.log)
