@@ -1,23 +1,13 @@
-require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-// const mongoose = require('mongoose');
 const path = require('path');
 const app = express();
-// const port = process.env.PORT || 5000;
+const youtube = require('./services/youtube');
 
 //config
 app.use(cors());
 app.use(express.json());
 
-
-//Connects backend server to mongoDB server
-// const uri = process.env.ATLAS_URI;
-//mongoose.connect(uri, { useNewUrlParser: true, useCreateIndex: true });
-// const connection = mongoose.connection;
-// connection.once('open', () => {
-//     console.log("MongoDB database connection established successfully");
-// });
 
 const server = app.listen(8080, () => {
     console.log('socket listening on port 8080')
