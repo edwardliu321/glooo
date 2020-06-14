@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
-import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Timeline } from 'antd'
+import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List } from 'antd'
 import config from '../config';
-import { UserOutlined, LoadingOutlined} from '@ant-design/icons';
+import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
+import axios from 'axios';
 import Linkify from 'react-linkify';
 
 const opts = {
@@ -15,9 +16,7 @@ const opts = {
 }
 
 
-//const socketEndpoint = 'http://localhost:8080/';
-//const socketEndpoint = 'https://glooo.io/';
-const socketEndpoint = config.socketEndpoint;
+const {socketEndpoint, serverEndpoint} = config;
 
 const Player = (props) => {
 
@@ -29,9 +28,10 @@ const Player = (props) => {
     const [currentVideoId, setCurrentVideoId] = useState(null);
     const [videoIdText, setVideoIdText] = useState(null);
     const [loading, setLoading] = useState(true);
-    const [rightTabKey, setRightTabKey] = useState('chat');
-    const [timelineEvents, setTimelineEvents] = useState([]);
-    let ref = useRef({ socket: null, player: null, userId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null });
+    const [videoList, setVideoList] = useState([]);
+    const [videoBrowseSearch, setVideoBrowseSearch] = useState();
+    const [showBrowseVideo, setShowBrowseVideo] = useState(false);
+    let ref = useRef({ socket: null, player: null, userId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
     let { socket, player, actionQueue } = ref.current;
 
     function pushAction(action) {
@@ -76,21 +76,35 @@ const Player = (props) => {
         }
     }
 
-    const tabList = [
-        {
-          key: 'chat',
-          tab: 'Chat',
-        },
-        {
-          key: 'timeline',
-          tab: 'Timeline',
-        },
-      ];
+    function handleSearch(){
+        setVideoList([{},{},{},{},{},{},{},{},{},{},{},{}]);
+        axios.get(`${serverEndpoint}/videos/search?q=${videoBrowseSearch}`)
+        .then(response => {
+            let { items, nextPageToken, totalResults } = response.data;
+            setVideoList(items);
+            ref.current.videoSearchData = {
+                q: videoBrowseSearch,
+                nextPageToken,
+                totalResults
+            };
+        })
+    }
 
-    function onTabChange(key){
-        ref.current.chatBottom.scrollIntoView({ behavior: 'smooth' });
-        setRightTabKey(key);
-    };
+    function loadMoreVideos(){
+        console.log('load more');
+        setVideoList(old => {
+            return [...old, ...old];
+        });
+        return;
+        axios.get(`${serverEndpoint}/videos/search?q=${ref.current.videoSearchData.q}&pageToken=${ref.current.videoSearchData.nextPageToken}`)
+        .then(response => {
+            let { items, nextPageToken } = response.data;
+            setVideoList(old => {
+                return [...old, ...items];
+            });
+            ref.current.videoSearchData.nextPageToken = nextPageToken;
+        });
+    }
 
     //******** Socket Logic *********/
     const playerReady = (event) => {
@@ -258,41 +272,6 @@ const Player = (props) => {
         }
     }
 
-
-    const chatContent = {
-        'chat':(
-            chatList.map(c =>
-                <Comment
-                    key={c.id}
-                    author={c.author}
-                    content={
-                        <p>
-                            <Linkify 
-                                componentDecorator={(href, text, key) => (
-                                    <a href={href} key={key} target="_blank">
-                                        {text}
-                                    </a>
-                                )
-                                }
-                            >
-                                {c.content}
-                            </Linkify>
-                        </p>
-
-                    }
-                />
-            )
-        ),
-        'timeline':(
-            <Timeline>
-                <Timeline.Item>Create a services site 2015-09-01</Timeline.Item>
-                <Timeline.Item>Solve initial network problems 2015-09-01</Timeline.Item>
-                <Timeline.Item>Technical testing 2015-09-01</Timeline.Item>
-                <Timeline.Item>Network problems being solved 2015-09-01</Timeline.Item>
-            </Timeline>
-        )
-    }
-
     return (
         <>
             <Spin spinning={loading} indicator={<LoadingOutlined style={{ fontSize: 50 }} spin />}>
@@ -309,6 +288,16 @@ const Player = (props) => {
                                     size="large"
                                 />
                             </Col>
+                            <Col span={1}/>
+                            <Col span={3}>
+                                <Button 
+                                    size="large" 
+                                    shape='round'
+                                    onClick={() => setShowBrowseVideo(true)}
+                                    >
+                                    Browse
+                                </Button>
+                            </Col>
                         </Row>
                         <div style={{ display: currentVideoId ? '' : 'none' }}>
                             <Row style={{ marginTop: "50px" }}>
@@ -323,22 +312,42 @@ const Player = (props) => {
                         </div>
                     </Col>
                     <Col span={5} >
-                        <Card title="Glooo Chat" 
-                        extra={
-                            <>
+                        <Card title="Glooo Chat"
+                            extra={
+                                <>
                                     <Button size='large' shape='round'>
                                         <UserOutlined />
                                         {userList.length}
                                     </Button>
-                            </>
-                        } 
-                        tabList={tabList}
-                        onTabChange={onTabChange}
-                        style={{ height: '100vh' }} >
+                                </>
+                            }
+                            style={{ height: '100vh' }} >
                             <div style={{ overflowY: 'scroll', height: '75vh' }} className="hideScroll">
-                                
-                                {chatContent[rightTabKey]}
-                                
+
+                                {
+                                    chatList.map(c =>
+                                        <Comment
+                                            key={c.id}
+                                            author={c.author}
+                                            content={
+                                                <p>
+                                                    <Linkify
+                                                        componentDecorator={(href, text, key) => (
+                                                                <a href={href} key={key} target="_blank">
+                                                                    {text}
+                                                                </a>
+                                                            )
+                                                        }
+                                                    >
+                                                        {c.content}
+                                                    </Linkify>
+                                                </p>
+
+                                            }
+                                        />
+                                    )
+                                }
+
                                 <br></br>
                                 <br></br>
                                 <br></br>
@@ -360,13 +369,65 @@ const Player = (props) => {
                                 <Form.Item>
                                     <Button onClick={(sendChat)} type="primary" style={{ float: 'right' }}>
                                         Chat
-                            </Button>
+                                    </Button>
                                 </Form.Item>
                             </div>
                         </Card>
                     </Col>
                 </Row>
             </Spin>
+
+            <Drawer
+                title="Browse"
+                width={720}
+                onClose={() => {setShowBrowseVideo(false)}}
+                visible={showBrowseVideo}
+                placement="left"
+            >
+            
+            <Row gutter={16}>
+                <Col span={24}>
+                    <Input.Search
+                        placeholder="Search"
+                        value={videoBrowseSearch}
+                        onChange={(e) => setVideoBrowseSearch(e.target.value)}
+                        onSearch={handleSearch}
+                        size="large"
+                    />
+                </Col>
+            </Row>
+            <Row gutter={24}>
+                <Col span={24}>
+                    <List
+                        itemLayout="vertical"
+                        dataSource={videoList}
+                        renderItem={item => (
+                        <List.Item
+                            key={item.title}
+                            extra={
+                            <img
+                                width={250}
+                                src={item.videoThumbnail}
+                            />
+                            }
+                        >
+                            <List.Item.Meta
+                            avatar={<Avatar src={item.channelThumbnail} />}
+                            title={
+                                <>
+                                    {item.title}
+                                </>
+                            }
+                            description={item.channelTitle}
+                            />
+                            {item.description}
+                        </List.Item>
+                        )}
+                    >
+                    </List>
+                </Col>
+            </Row>
+            </Drawer>
         </>
     )
 }
