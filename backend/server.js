@@ -47,10 +47,10 @@ app.get('/videos/search', (req, res) => {
         res.send(response);
     });
 })
-app.use(express.static(path.join(__dirname, '/../frontend/build')));
+app.use(express.static(path.join(__dirname, '/../frontend/site')));
 app.get('*',(req,res) => {
     console.log(__dirname);
-    res.sendFile(path.join(__dirname, '/../frontend/build', 'index.html'));
+    res.sendFile(path.join(__dirname, '/../frontend/site', 'index.html'));
 });
 
 app.post('/room/create', (req, res) => {
