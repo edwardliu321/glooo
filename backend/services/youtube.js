@@ -2,14 +2,14 @@ const { google } = require('googleapis');
 require('dotenv').config();
 
 const KEY = process.env.YOUTUBE_KEY;
-const CACHE = {
+// const CACHE = {
 
-}
+// }
 
-//CLEAR EVERY HOUR
-setInterval(() => {
-    CACHE = {}
-}, 60*60000);
+// //CLEAR EVERY HOUR
+// setInterval(() => {
+//     CACHE = {}
+// }, 60*60000);
 
 const search = (q, pageToken) => {
     return new Promise((resolveSearch) => {
@@ -17,12 +17,12 @@ const search = (q, pageToken) => {
             key: KEY,
             part: 'snippet',
             q: q,
-            maxResults: 5,
+            maxResults: 15,
             type: "video",
             pageToken: pageToken
         }).then(response => {
             let channelIds = response.data.items.map(x => x.snippet.channelId).join(',');
-            getChannels(channelIds).then(channels => {
+            _getChannels(channelIds).then(channels => {
                 let items = response.data.items.map((x) => {
                     return {
                         videoId: x.id.videoId,
@@ -42,11 +42,11 @@ const search = (q, pageToken) => {
     });
 }
 
-const getChannels = (channelId) => {
+const _getChannels = (channelIds) => {
     return new Promise((resolve) => {
         google.youtube('v3').channels.list({
             key: KEY,
-            id: channelId,
+            id: channelIds,
             part: 'snippet',
             maxResults: 1
         }).then(response => {
@@ -66,4 +66,4 @@ module.exports = {
     search
 }
 
-search('pewdie').then(console.log)
+// search('pewdie').then(console.log)
