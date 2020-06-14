@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import SocketIOClient from 'socket.io-client'
-import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider } from 'antd'
+import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider, notification } from 'antd'
 import config from '../config';
 import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
 import axios from 'axios';
@@ -117,6 +117,17 @@ const Player = (props) => {
         e.preventDefault();
         setShowBrowseVideo(false);
             cueVideoById(videoId, true);
+    }
+
+
+    function openNameForm(){
+        notification.open({
+            message: 'Notification Title',
+            description:(
+                <Input size="large" placeholder="Display Name" />
+            ),
+            duration: 0,
+        })
     }
 
     //******** Socket Logic *********/
@@ -249,7 +260,6 @@ const Player = (props) => {
         let x = player.getDuration();
         let videoId = player.getVideoData()['video_id'];
         let playerState = player.getPlayerState();
-
         if (x > 0 && currentVideoId !== videoId) {
             console.log('video load');
 
@@ -428,6 +438,7 @@ const Player = (props) => {
                             key={item.videoId}
                             extra={
                                 <img
+                                    alt={item.title}
                                     width={250}
                                     src={item.videoThumbnail}
                                 />

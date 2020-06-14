@@ -38,5 +38,10 @@ module.exports = {
         exclude: /\.module\.css$/
       }
     ]
+  },
+  devServer: {
+    contentBase: path.join(__dirname, 'site'),
+    compress: true,
+    port: 3000
   }
 }
