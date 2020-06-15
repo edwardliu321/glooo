@@ -4,7 +4,7 @@ module.exports = {
   entry: "./src/index.js",
   output: {
     path: path.resolve(__dirname, "site"),
-    filename: "index.js"
+    filename: "index.js",
   },
   module: {
     rules: [
@@ -42,6 +42,7 @@ module.exports = {
   devServer: {
     contentBase: path.join(__dirname, 'site'),
     compress: true,
-    port: 3000
+    port: 3000,
+    historyApiFallback: true
   }
 }
