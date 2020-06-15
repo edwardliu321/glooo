@@ -304,7 +304,7 @@ const Player = (props) => {
                         <Row style={{ marginTop: "70px" }}>
                             <Col span={17}>
                                 <Input.Search
-                                    placeholder="Search"
+                                    placeholder="Paste URL or Video Id"
                                     value={videoIdText}
                                     onChange={(e) => setVideoIdText(e.target.value)}
                                     onSearch={() => cueVideoById(videoIdText, true)}
