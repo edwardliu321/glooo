@@ -1,9 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
-import SocketIOClient from 'socket.io-client'
-import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider, notification } from 'antd'
+import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider, notification, Badge } from 'antd'
 import config from '../config';
-import { UserOutlined, LoadingOutlined } from '@ant-design/icons';
+import { UserOutlined, LoadingOutlined, ProfileFilled } from '@ant-design/icons';
 import axios from 'axios';
 import Linkify from 'react-linkify';
 import './Player.css';
@@ -17,11 +16,11 @@ const opts = {
 }
 
 
-const {socketEndpoint, serverEndpoint} = config;
+const {serverEndpoint} = config;
 
-const Player = (props) => {
+const Player = ({socket, match, profile, friendsOnline}) => {
 
-    //******** States and Refs *********/
+    /******** States and Refs *********/
     const [name, setName] = useState(null);
     const [userList, setUsers] = useState([]);
     const [chatList, setChatList] = useState([]);
@@ -33,8 +32,9 @@ const Player = (props) => {
     const [loadingVideoList, setLoadingVideoList] = useState(false);
     const [videoBrowseSearch, setVideoBrowseSearch] = useState();
     const [showBrowseVideo, setShowBrowseVideo] = useState(false);
-    let ref = useRef({ socket: null, player: null, userId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
-    let { socket, player, actionQueue } = ref.current;
+    const [showFriendsList, setShowFriendsList] = useState(false);
+    let ref = useRef({ player: null, socketId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
+    let { player, actionQueue } = ref.current;
 
     function pushAction(action) {
         actionQueue[action] = true;
@@ -130,37 +130,34 @@ const Player = (props) => {
         })
     }
 
-    //******** Socket Logic *********/
+    /******** Socket Logic *********/
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
         let list = userList;
 
-        ref.current.socket = SocketIOClient(socketEndpoint);
-        socket = ref.current.socket;
+        //socketRef.current = SocketIOClient(socketEndpoint);
+    
 
-        //** On Connect **/
-        socket.on('connect', () => {
-            let roomId = props.match.params.roomId;
-            socket.emit('join', { roomId }, (data) => {
-                console.log("join data ", data);
-                ref.current.userId = data.userId;
-                setUsers(data.users);
-                setName(data.name);
-                if (data.host) {
-                    ref.current.isHost = true;
+        let roomId = match.params.roomId;
+        socket.emit('join', { roomId }, (data) => {
+            console.log("join data ", data);
+            ref.current.socketId = data.socketId;
+            setUsers(data.users);
+            setName(data.name);
+            if (data.host) {
+                ref.current.isHost = true;
+                ref.current.requireTime = false;
+            }
+            else {
+                if (data.videoId)
+                    cueVideoById(data.videoId, false);
+                else
                     ref.current.requireTime = false;
-                }
-                else {
-                    if (data.videoId)
-                        cueVideoById(data.videoId, false);
-                    else
-                        ref.current.requireTime = false;
-                }
-                message.success(`Joined room "${roomId}"`);
+            }
+            message.success(`Joined room "${roomId}"`);
 
-                setLoading(false);
-            });
+            setLoading(false);
         });
 
         //** Syncronizing Players **/
@@ -181,12 +178,12 @@ const Player = (props) => {
             playVideo(time);
         });
 
-        //** Handling Video Changes **/
+        /** Handling Video Changes **/
         socket.on('cuevideo', (data) => {
             cueVideoById(data.videoId, false);
         })
 
-        //** Handling User Join/Leave **/
+        /** Handling User Join/Leave **/
         socket.on('timerequest', (data) => {
             console.log("request");
             socket.emit('timeresponse', {
@@ -221,7 +218,7 @@ const Player = (props) => {
     }
 
 
-    //******** Player Controls Functions *********/
+    /******** Player Controls Functions *********/
 
     const cueVideoById = (videoIdSearch, emit) => {
         console.log(videoIdSearch)
@@ -265,7 +262,7 @@ const Player = (props) => {
 
             setCurrentVideoId(videoId);
             if (ref.current.requireTime) {
-                socket.emit('timerequest', { id: ref.current.userId });
+                socket.emit('timerequest', { id: ref.current.socketId });
                 ref.current.requireTime = false;
             }
             //If video changes and already in room
@@ -317,8 +314,17 @@ const Player = (props) => {
                                     size="large" 
                                     shape='round'
                                     onClick={() => setShowBrowseVideo(true)}
-                                    >
+                                >
                                     Browse
+                                </Button>
+                            </Col>
+                            <Col span={3}>
+                                <Button 
+                                    size="large" 
+                                    shape='round'
+                                    onClick={() => setShowFriendsList(true)}
+                                >
+                                    Friends
                                 </Button>
                             </Col>
                         </Row>
@@ -346,7 +352,6 @@ const Player = (props) => {
                             }
                             style={{ height: '100vh' }} >
                             <div style={{ overflowY: 'scroll', height: '75vh' }} className="hideScroll">
-
                                 {
                                     chatList.map(c =>
                                         <Comment
@@ -400,6 +405,16 @@ const Player = (props) => {
                 </Row>
             </Spin>
 
+            <Drawer 
+                title="Friends List"
+                width={720}
+                onClose={() => setShowFriendsList(false)}
+                visible={showFriendsList}
+                placement="right"
+            >
+                { profile.friends.map(({name, userId}) => {return(<Badge status={friendsOnline.includes(userId) ? "success" : "default"} text={name} />)}) }
+            </Drawer>
+
             <Drawer
                 title="Browse"
                 width={720}
@@ -433,26 +448,26 @@ const Player = (props) => {
                         size="large"
                         renderItem={item => (
                             <>
-                        <a href='#' style={{color:'inherit'}} onClick={e => selectBrowseVideo(e, item.videoId)}>
-                        <List.Item
-                            key={item.videoId}
-                            extra={
-                                <img
-                                    alt={item.title}
-                                    width={250}
-                                    src={item.videoThumbnail}
-                                />
-                            }
-                        >
-                            <List.Item.Meta
-                            avatar={<Avatar src={item.channelThumbnail} />}
-                            title={item.title}
-                            description={item.channelTitle}
-                            />
-                            <p>{item.description.substring(0,100)}{item.description.length > 100 ? '...' : ''}</p>
-                        </List.Item>
-                        </a>
-                        </>
+                            <a href='#' style={{color:'inherit'}} onClick={e => selectBrowseVideo(e, item.videoId)}>
+                                <List.Item
+                                    key={item.videoId}
+                                    extra={
+                                        <img
+                                            alt={item.title}
+                                            width={250}
+                                            src={item.videoThumbnail}
+                                        />
+                                    }
+                                >
+                                    <List.Item.Meta 
+                                        avatar={<Avatar src={item.channelThumbnail}/>}
+                                        title={item.title}
+                                        description={item.channelTitle}
+                                    />
+                                    <p>{item.description.substring(0,100)}{item.description.length > 100 ? '...' : ''}</p>
+                                </List.Item>
+                            </a>
+                            </>
                         )}
                     >
                     </List>

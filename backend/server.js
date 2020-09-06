@@ -5,11 +5,12 @@ const app = express();
 const youtube = require('./services/youtube');
 // const youtube = require('./services/youtube-mock');
 const { response } = require('express');
-
+const jws = require('jws');
 //config
 app.use(cors());
 app.use(express.json());
-
+require('dotenv').config();
+const JWS_SECRET = process.env.JWS_SECRET;
 
 const server = app.listen(8080, () => {
     console.log('socket listening on port 8080')
@@ -19,10 +20,9 @@ const server = app.listen(8080, () => {
 app.listen(5000);
 const io = require('socket.io')(server);
 
-
 const generateID = (length) => {
-    var result           = '';
-    var characters       = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    var result = '';
+    var characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     var charactersLength = characters.length;
     for ( var i = 0; i < length; i++ ) {
        result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -32,13 +32,60 @@ const generateID = (length) => {
 
 const resources = {
     rooms: {},
-    createRoom : (roomId) => {
+    usersOnline: { },
+    createRoom : (roomId, hostUserId = null) => {
         resources.rooms[roomId] = {
-            users : [],
+            users : [], // [userId1, userId2, userId3]
+            hostUserId: hostUserId,
             count : 0,
-            videoId: null//'2g811Eo7K8U'
+            videoId: null // '2g811Eo7K8U'
         };
+    }
+}
+
+const userUtils = {
+    addFriend: (userId, friendUserId, callback) => {
+        if (userId !== friendUserId) {
+            const usersOnline = resources.usersOnline;
+            const friends = usersOnline[userId].profile.friends; // friends of userId
+            const userFriendIds = friends.map(friend => friend.userId);
+            if (usersOnline[friendUserId] && !userFriendIds.includes(friendUserId)) {
+                const friendUserProfile = usersOnline[friendUserId].profile;
+                friends.push({
+                    userId: friendUserProfile.userId,
+                    name: friendUserProfile.name
+                })
+                callback && callback(true);
+            }
+        }
+        callback && callback(false);
     },
+    getSignedProfile: (userId) => {
+        const profile = resources.usersOnline[userId].profile;
+        return userUtils.signProfile(profile);
+    },
+    signProfile: (profile) => {
+        const signature = jws.sign({
+            header: { alg: 'HS256' },
+            payload: profile,
+            secret: JWS_SECRET,
+        });
+        return signature;
+        //return JSON.stringify(profile);
+    },
+    parseProfile: (signed) => {
+        const decoded = jws.decode(signed);
+        return JSON.parse(decoded.payload);
+        //return JSON.parse(signed);
+    },
+    createProfile: () => {
+        let userId = generateID(12);
+        return {
+            userId: userId,
+            name: userId,
+            friends: []
+        };
+    }
 }
 
 app.get('/videos/search', (req, res) => {
@@ -46,10 +93,9 @@ app.get('/videos/search', (req, res) => {
     youtube.search(q, pageToken).then(response => {
         res.send(response);
     });
-})
+});
 app.use(express.static(path.join(__dirname, '/../frontend/site')));
-app.get('*',(req,res) => {
-    console.log(__dirname);
+app.get('*', (req,res) => {
     res.sendFile(path.join(__dirname, '/../frontend/site', 'index.html'));
 });
 
@@ -77,56 +123,96 @@ app.post('/room/checkid', (req,res) => {
 
 
 io.on('connection', (socket) => {
-    let roomId = '';
-    let rooms = resources.rooms;
-    let userId = socket.id;
     console.log('connection');
-    socket.on('join', (data, fn) => {
-        roomId = data.roomId;
-        socket.join(roomId);
-        console.log(userId + ' has joined');
-        //create in server. Will assume room always exists.
-        if(!rooms[roomId]) resources.createRoom(roomId);
-        let room = rooms[roomId];
-        room.count++;
-        let name = data.name || 'User ' + room.count;
-        let user = {
-            id: userId,
-            name: name,
-            host : false
-        };
-        if (room.users.length > 0) {
-            //join existing room
-            room.users.push(user);
-            //notify new user join
-            socket.to(roomId).broadcast.emit('userjoin', { id: userId, name: user.name });
-            
-            //request to obtain time from host
-            //let hostUser = room.users.find((x) => x.host);
-            //socket.to(hostUser.id).emit('timerequest', {id: userId});
+    const socketId = socket.id;
+    const {usersOnline, rooms} = resources;
+    let userId;
+
+    socket.on('init', (data, fn) => {
+        let profile;
+        const response = {friendsOnline: []};
+
+        if (data.profile) {
+            profile = userUtils.parseProfile(data.profile);
+            profile.friends.forEach((friend) => {
+                if (usersOnline[friend.userId]) {
+                    if (usersOnline[friend.userId].profile.name !== friend.name) {
+                        friend.name = usersOnline[friend.userId].profile.name
+                    }
+                   
+                    const initUser = usersOnline[friend.userId].profile.friends.find((friend) => friend.userId === profile.userId);
+                    if (initUser.name !== profile.name) {
+                        initUser.name = profile.name
+                        io.to(usersOnline[friend.userId].socketId).emit('profilechange', userUtils.getSignedProfile(friend.userId));
+                    }
+                    response.friendsOnline.push(friend.userId);
+                    io.to(usersOnline[friend.userId].socketId).emit('friendonline', profile.userId);
+                }
+            });
         }
         else {
-            //initialize new room
-            user.host = true;
-            room.users.push(user);
+            profile = userUtils.createProfile();
+            response.profile = userUtils.signProfile(profile);
         }
-        console.log(rooms);
+         
+        usersOnline[profile.userId] = {socketId, profile, roomId: null};
+        userId = profile.userId;
+        socket.emit('profilechange', userUtils.getSignedProfile(userId));
+        
+        fn(response);
+    });
+    
+    socket.on('join', (data, fn) => {
+        const roomId = data.roomId;
+        socket.join(roomId);
+        console.log(socketId + ' has joined');
+        
+        //create in server. Will assume room always exists.
+        if(!rooms[roomId]) resources.createRoom(roomId, userId);
+        usersOnline[userId].roomId = roomId;
+        
+        let room = rooms[roomId];
+
+        if (room.users.length > 0) {
+            //notify new user join
+            socket.to(roomId).broadcast.emit('userjoin', { id: userId, name: usersOnline[userId].profile.name });
+            let friendAdded = false;
+            
+            room.users.forEach(roomUserId => {
+                userUtils.addFriend(userId, roomUserId, (added) => {
+                    if (added) {
+                        friendAdded = true
+                        io.to(usersOnline[userId].socketId).emit('friendonline', roomUserId);
+                        io.to(usersOnline[roomUserId].socketId).emit('friendonline', userId);
+                        io.to(usersOnline[roomUserId].socketId).emit('profilechange', userUtils.getSignedProfile(roomUserId));
+                    }
+                });
+                userUtils.addFriend(roomUserId, userId);
+            })
+
+            if (friendAdded) {
+                socket.emit('profilechange', userUtils.getSignedProfile(userId));
+            }
+        }
+        else {
+            room.hostUserId = userId;
+        }
+        room.users.push(userId);
         
         let response = {
             users: room.users,
-            host: user.host,
-            userId: userId,
-            videoId: room.videoId,
-            name: name
+            host: room.hostUserId === userId,
+            socketId: socketId,
+            videoId: room.videoId
         };
+
         fn(response);
     });
-
 
     //respond to timerequest
     socket.on('timeresponse', (data) => {
         console.log('time response')
-        let client = socket.to(data.id);
+        let client = io.to(usersOnline[data.id].socketId);
         if(data.isPlaying) {
            client.emit('play', {time: data.time});
         }
@@ -135,25 +221,34 @@ io.on('connection', (socket) => {
             client.emit('seekpause', {time: data.time});
         }
     });
+
     socket.on('timerequest', (data) => {
-        let users = rooms[roomId].users;
-        let hostUser = users.find((x) => x.host);
-        socket.to(hostUser.id).emit('timerequest', data);
+        const roomId = usersOnline[userId].roomId;
+        const hostUser = rooms[roomId].hostUserId;
+        io.to(hostUser.id).emit('timerequest', data);
 
     });
+
     socket.on('pause', () => {
+        const roomId = usersOnline[userId].roomId;
         socket.to(roomId).broadcast.emit('pause');
         console.log('pause in ' + roomId);
     });
+
     socket.on('play', (data) => {
+        const roomId = usersOnline[userId].roomId;
         socket.to(roomId).broadcast.emit('play', data);
         console.log('play in ' + roomId);
     });
+
     socket.on('seek', (data) => {
+        const roomId = usersOnline[userId].roomId;
         socket.to(roomId).broadcast.emit('seek', data);
         console.log('seek in ' + roomId);
     });
+
     socket.on('cuevideo', (data) => {
+        const roomId = usersOnline[userId].roomId;
         rooms[roomId].videoId = data.videoId;
         socket.to(roomId).broadcast.emit('cuevideo', data);
         console.log('switch to video: ' + data.videoId);
@@ -161,34 +256,38 @@ io.on('connection', (socket) => {
 
     //Chat
     socket.on('chat', (data) => {
+        const roomId = usersOnline[userId].roomId;
         data.id = generateID(8);
         io.in(roomId).emit('chat', data);
-        console.log(`Chat in ${roomId}: ${data.author.name} + ${data.content}`);
     });
-
     
     socket.on('disconnect', () => {
-        //user leaves
-        let room = rooms[roomId];
-        if (!room) return;
-        for (let i = 0; i < room.users.length; i++) {
-            if (room.users[i].id === userId) {
-                //remove user
-                room.users.splice(i, 1);
+        console.log(usersOnline);
+        console.log(userId);
+        
+        if (usersOnline[userId]) {
+            const friends = usersOnline[userId].profile.friends;
+            const roomId = usersOnline[userId].roomId;
+            const room = rooms[roomId];
+    
+            friends.forEach((friend) => {
+                if (usersOnline[friend.userId]) {
+                    io.to(usersOnline[friend.userId].socketId).emit('friendoffline', userId);
+                }
+            });
+            delete resources.usersOnline[userId];
+    
+            if (room) {
+                room.users = room.users.filter(usrId => usrId !== userId);
                 socket.to(roomId).broadcast.emit('userleft', { id: userId });
-                break;
+    
+                if (room.users.length === 0) {
+                    console.log('deleting room: ' + roomId);
+                    delete rooms[roomId];
+                } else if (room.hostuserId === userId) {
+                    room.hostUserId = room.users[0];
+                }
             }
-        }
-        if (room.users.length === 0) {
-            //delete empty room (no users)
-            console.log('deleting room: ' + roomId);
-            delete rooms[roomId];
-            return;
-        }
-
-        //reassign host to next user
-        if(!room.users[0].host){
-            room.users[0].host = true;
-        }
+        }   
     });
 });

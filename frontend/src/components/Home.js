@@ -43,15 +43,6 @@ const Home = (props) => {
             .catch(err => console.log(err))
     }
 
-
-    let roomErrorMessageHtml;
-    if(roomError) {
-        roomErrorMessageHtml = (
-        <Text type="danger">Invalid Room ID</Text>
-        );
-    }
-    
-
     return (
         <div>
             <div>
@@ -68,7 +59,10 @@ const Home = (props) => {
                     onCancel={closeModal}
                 >
                     <Input size="large" value={roomId} onChange={onIDChange} placeholder="Room Id"/>
-                    {roomErrorMessageHtml}
+                    {
+                        roomError && 
+                            <Text type="danger">Invalid Room ID</Text>
+                    }
             </Modal>
         </div>
     )
