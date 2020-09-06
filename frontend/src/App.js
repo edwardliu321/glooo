@@ -1,7 +1,8 @@
 import React, { Component, useRef, useState, useEffect } from 'react';
-import {BrowserRouter as Router, Switch, Route} from "react-router-dom";
+import {BrowserRouter as Router, Switch, Route, useHistory} from "react-router-dom";
 import Player from './components/Player';
 import Home from './components/Home';
+import { notification, Button } from 'antd'
 import jws from 'jws';
 import 'antd/dist/antd.css'
 import config from './config';
@@ -10,16 +11,20 @@ import SocketIOClient from 'socket.io-client'
 const {socketEndpoint, gloooTokenKey} = config;
 
 const parseProfile = (profile) => {
-    console.log(profile);
     const decoded = jws.decode(profile);
     return JSON.parse(decoded.payload);
 }
 
 const App = ({}) => {
-    const [profile, setProfile] = useState(null);
+    const [profile, setProfile] = useState();
     const [friendsOnline, setFriendsOnline] = useState([]);
     const socketRef = useRef();
-    
+    const history = useHistory();
+    const profileRef = useRef();
+
+    useEffect(() => {
+        profileRef.current = profile;
+    }, [profile]);
 
     useEffect(() => {
         socketRef.current = SocketIOClient(socketEndpoint);
@@ -36,6 +41,7 @@ const App = ({}) => {
 
         socket.on('profilechange', (signedProfile) => {
             localStorage.setItem(gloooTokenKey, signedProfile);
+            console.log(parseProfile(signedProfile));
             setProfile(parseProfile(signedProfile));
         })
 
@@ -48,16 +54,46 @@ const App = ({}) => {
             const newFriendsOnline = friendsOnline.filter(userId => userId !== friendUserId);
             setFriendsOnline(newFriendsOnline);
         })
+
+        socket.on('friendinvite', ({friendUserId, roomId}) => {
+            console.log('invite received', friendUserId);
+            onFriendInvite(friendUserId, roomId);
+        })
     }, []);
 
+    const acceptFriendInvite = (roomId) => {
+        console.log('accepted');
+        history.push(`/video/${roomId}`);
+    }
+
+    const onFriendInvite = (friendUserId, roomId) => {
+        const friendName = profileRef.current.friends.find((friend) => friend.userId === friendUserId).name;
+        const key = `open${Date.now()}`;
+        const btn = (
+            <Button type="primary" size="small" onClick={() => {
+                    acceptFriendInvite(roomId);
+                    notification.close(key);
+                }}>
+                Confirm
+            </Button>
+        );
+        notification.open({
+            message: 'Notification Title',
+            description:
+            `${friendName} has invited you!`,
+            btn,
+            key
+        });
+    }
+    //window.profile = profile;
     return (
-            profile &&
-            <Router>
+            profile ?
                 <Switch>
                     <Route exact path="/" component={Home} />
                     <Route path="/video/:roomId" render ={(props) => <Player {...props} profile={profile} friendsOnline={friendsOnline} socket={socketRef.current}/>} />
                 </Switch>
-            </Router>
+             :
+                <></>
     )
 }
 

@@ -21,6 +21,8 @@ const {serverEndpoint} = config;
 const Player = ({socket, match, profile, friendsOnline}) => {
 
     /******** States and Refs *********/
+    const roomId = match.params.roomId;
+
     const [name, setName] = useState(null);
     const [userList, setUsers] = useState([]);
     const [chatList, setChatList] = useState([]);
@@ -136,10 +138,9 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         player = ref.current.player;
         let list = userList;
 
-        //socketRef.current = SocketIOClient(socketEndpoint);
+        //socketRef.current = SocketIOClient(socketEndpoint)
     
 
-        let roomId = match.params.roomId;
         socket.emit('join', { roomId }, (data) => {
             console.log("join data ", data);
             ref.current.socketId = data.socketId;
@@ -193,17 +194,16 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                 videoId: currentVideoId
             })
         })
-        socket.on('userjoin', (data) => {
-            console.log(list)
+        socket.on('userjoin', (userId) => {
             setUsers((userList) => {
-                return [...userList, data]
+                return [...userList, userId]
             });
             message.info("A user has joined!")
         });
-        socket.on('userleft', (data) => {
+        socket.on('userleft', (userLeftId) => {
             setUsers((userList) => {
                 let newUserList = [...userList]
-                return newUserList.filter((user) => user.id !== data.id)
+                return newUserList.filter((userId) => userId !== userLeftId)
             })
             message.warning("A user has left.")
         })
@@ -215,6 +215,10 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                 return [...chatlist, data];
             });
         });
+    }
+
+    function inviteFriend(friendUserId){
+        socket.emit('friendinvite', {friendUserId, roomId})
     }
 
 
@@ -412,7 +416,22 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                 visible={showFriendsList}
                 placement="right"
             >
-                { profile.friends.map(({name, userId}) => {return(<Badge status={friendsOnline.includes(userId) ? "success" : "default"} text={name} />)}) }
+                { 
+                    profile.friends.map(({name, userId}) => {
+                        return(
+                            <Row justify='space-between'>
+                                <Badge status={friendsOnline.includes(userId) ? "success" : "default"} text={name} />
+                                <Button 
+                                    type="primary" 
+                                    onClick={() => {
+                                        inviteFriend(userId);
+                                    }}
+                                >
+                                    Invite
+                                </Button>   
+                            </Row> 
+                        )
+                    }) }
             </Drawer>
 
             <Drawer

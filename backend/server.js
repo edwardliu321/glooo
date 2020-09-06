@@ -154,7 +154,7 @@ io.on('connection', (socket) => {
             profile = userUtils.createProfile();
             response.profile = userUtils.signProfile(profile);
         }
-         
+    
         usersOnline[profile.userId] = {socketId, profile, roomId: null};
         userId = profile.userId;
         socket.emit('profilechange', userUtils.getSignedProfile(userId));
@@ -175,21 +175,22 @@ io.on('connection', (socket) => {
 
         if (room.users.length > 0) {
             //notify new user join
-            socket.to(roomId).broadcast.emit('userjoin', { id: userId, name: usersOnline[userId].profile.name });
+            socket.to(roomId).broadcast.emit('userjoin',  userId);
             let friendAdded = false;
             
             room.users.forEach(roomUserId => {
-                userUtils.addFriend(userId, roomUserId, (added) => {
+                userUtils.addFriend(userId, roomUserId);
+                userUtils.addFriend(roomUserId, userId, (added) => {
                     if (added) {
                         friendAdded = true
                         io.to(usersOnline[userId].socketId).emit('friendonline', roomUserId);
+                        console.log('usersOnline[roomUserId]')
+                        console.log(usersOnline[roomUserId])
                         io.to(usersOnline[roomUserId].socketId).emit('friendonline', userId);
                         io.to(usersOnline[roomUserId].socketId).emit('profilechange', userUtils.getSignedProfile(roomUserId));
                     }
                 });
-                userUtils.addFriend(roomUserId, userId);
             })
-
             if (friendAdded) {
                 socket.emit('profilechange', userUtils.getSignedProfile(userId));
             }
@@ -209,6 +210,13 @@ io.on('connection', (socket) => {
         fn(response);
     });
 
+    socket.on('friendinvite', ({friendUserId, roomId}) => {
+        if (usersOnline[friendUserId]) {
+            console.log('friend invite');
+            io.to(usersOnline[friendUserId].socketId).emit('friendinvite', {friendUserId: userId, roomId});
+        }
+    })
+
     //respond to timerequest
     socket.on('timeresponse', (data) => {
         console.log('time response')
@@ -226,7 +234,6 @@ io.on('connection', (socket) => {
         const roomId = usersOnline[userId].roomId;
         const hostUser = rooms[roomId].hostUserId;
         io.to(hostUser.id).emit('timerequest', data);
-
     });
 
     socket.on('pause', () => {
@@ -279,7 +286,7 @@ io.on('connection', (socket) => {
     
             if (room) {
                 room.users = room.users.filter(usrId => usrId !== userId);
-                socket.to(roomId).broadcast.emit('userleft', { id: userId });
+                socket.to(roomId).broadcast.emit('userleft', userId);
     
                 if (room.users.length === 0) {
                     console.log('deleting room: ' + roomId);
