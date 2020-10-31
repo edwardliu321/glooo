@@ -4,7 +4,6 @@ const path = require('path');
 const app = express();
 const youtube = require('./services/youtube');
 // const youtube = require('./services/youtube-mock');
-const { response } = require('express');
 const jws = require('jws');
 //config
 app.use(cors());
