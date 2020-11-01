@@ -1,5 +1,6 @@
 /.idea
 /backend/.env
+/backend/public
 */node_modules/*
 .vscode/*
 vidyo.iml

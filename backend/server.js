@@ -93,9 +93,9 @@ app.get('/videos/search', (req, res) => {
         res.send(response);
     });
 });
-app.use(express.static(path.join(__dirname, '/../frontend/site')));
+app.use(express.static('public'));
 app.get('*', (req,res) => {
-    res.sendFile(path.join(__dirname, '/../frontend/site', 'index.html'));
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.post('/room/create', (req, res) => {
