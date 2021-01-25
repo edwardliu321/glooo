@@ -63,7 +63,7 @@ const App = ({}) => {
 
     const acceptFriendInvite = (roomId) => {
         console.log('accepted');
-        history.push(`/video/${roomId}`);
+        window.location.assign(`/video/${roomId}`);
     }
 
     const onFriendInvite = (friendUserId, roomId) => {
