@@ -21,7 +21,7 @@
     "react-linkify": "^1.0.0-alpha",
     "react-router-dom": "^5.1.2",
     "react-scripts": "3.4.0",
-    "react-youtube": "^7.9.0",
+    "react-youtube": "7.13.1",
     "socket.io-client": "^2.3.0"
   },
   "eslintConfig": {

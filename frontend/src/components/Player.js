@@ -35,9 +35,10 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     const [videoBrowseSearch, setVideoBrowseSearch] = useState();
     const [showBrowseVideo, setShowBrowseVideo] = useState(false);
     const [showFriendsList, setShowFriendsList] = useState(false);
-    let ref = useRef({ player: null, socketId: null, requireTime: true, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
+    let ref = useRef({ player: null, socketId: null, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
     let { player, actionQueue } = ref.current;
 
+    window.player = player;
     function pushAction(action) {
         actionQueue[action] = true;
     }
@@ -136,11 +137,9 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     const playerReady = (event) => {
         ref.current.player = event.target;
         player = ref.current.player;
-        let list = userList;
-
+        player.playVideo();
         //socketRef.current = SocketIOClient(socketEndpoint)
-    
-
+       
         socket.emit('join', { roomId }, (data) => {
             console.log("join data ", data);
             ref.current.socketId = data.socketId;
@@ -148,13 +147,9 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             setName(data.name);
             if (data.host) {
                 ref.current.isHost = true;
-                ref.current.requireTime = false;
             }
             else {
-                if (data.videoId)
-                    cueVideoById(data.videoId, false);
-                else
-                    ref.current.requireTime = false;
+                socket.emit('timerequest', {id: profile.userId})
             }
             message.success(`Joined room "${roomId}"`);
 
@@ -184,16 +179,25 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             cueVideoById(data.videoId, false);
         })
 
+       
         /** Handling User Join/Leave **/
         socket.on('timerequest', (data) => {
-            console.log("request");
+            console.log('timerequest')
+            
+            const videoId = player.getVideoData()['video_id'];
             socket.emit('timeresponse', {
                 id: data.id,
                 isPlaying: player.getPlayerState() === 1,
                 time: player.getCurrentTime(),
-                videoId: currentVideoId
+                videoId: videoId
             })
-        })
+        });
+
+        socket.on('timeresponse', (data) => {
+            let {time,isPlaying, videoId} = data;
+            cueVideoById(videoId, false, time);
+        });
+
         socket.on('userjoin', (userId) => {
             setUsers((userList) => {
                 return [...userList, userId]
@@ -224,16 +228,16 @@ const Player = ({socket, match, profile, friendsOnline}) => {
 
     /******** Player Controls Functions *********/
 
-    const cueVideoById = (videoIdSearch, emit) => {
+    const cueVideoById = (videoIdSearch, emit, time) => {
         console.log(videoIdSearch)
         if (!videoIdSearch) return;
         setVideoIdText(videoIdSearch);
         let videoId = parseVideoId(videoIdSearch);
         console.log(videoId);
         console.log(currentVideoId);
-
+        
         if (videoId === currentVideoId) return;
-        player.loadVideoById(videoId);
+        player.loadVideoById(videoId, time ?? 0);
         setCurrentVideoId(videoId);
         if (emit) {
             socket.emit('cuevideo', { videoId: videoIdSearch });
@@ -247,6 +251,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     const playVideo = (time) => {
         if (time !== null && time !== undefined) player.seekTo(time);
         player.playVideo();
+      
     }
 
     const seekTo = (time, emit) => {
@@ -259,23 +264,9 @@ const Player = ({socket, match, profile, friendsOnline}) => {
 
     const playerStateChanged = (e) => {
         let x = player.getDuration();
-        let videoId = player.getVideoData()['video_id'];
         let playerState = player.getPlayerState();
-        if (x > 0 && currentVideoId !== videoId) {
-            console.log('video load');
-
-            setCurrentVideoId(videoId);
-            if (ref.current.requireTime) {
-                socket.emit('timerequest', { id: ref.current.socketId });
-                ref.current.requireTime = false;
-            }
-            //If video changes and already in room
-            else {
-                pauseVideo();
-                seekTo(0);
-            }
-        }
-        else if (playerState === YouTube.PlayerState.PLAYING || playerState === YouTube.PlayerState.PAUSED) {
+        console.log(x)
+        if (playerState === YouTube.PlayerState.PLAYING || playerState === YouTube.PlayerState.PAUSED) {
             console.log('before------------------');
             console.log(actionQueue);
             if (playerState === YouTube.PlayerState.PLAYING) {
@@ -313,7 +304,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                                 />
                             </Col>
                             <Col span={1}/>
-                            <Col span={3}>
+                            {/* <Col span={3}>
                                 <Button 
                                     size="large" 
                                     shape='round'
@@ -321,7 +312,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                                 >
                                     Browse
                                 </Button>
-                            </Col>
+                            </Col> */}
                             <Col span={3}>
                                 <Button 
                                     size="large" 

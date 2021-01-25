@@ -36,8 +36,7 @@ const resources = {
         resources.rooms[roomId] = {
             users : [], // [userId1, userId2, userId3]
             hostUserId: hostUserId,
-            count : 0,
-            videoId: null // '2g811Eo7K8U'
+            count : 0
         };
     }
 }
@@ -164,7 +163,6 @@ io.on('connection', (socket) => {
     socket.on('join', (data, fn) => {
         const roomId = data.roomId;
         socket.join(roomId);
-        console.log(socketId + ' has joined');
         
         //create in server. Will assume room always exists.
         if(!rooms[roomId]) resources.createRoom(roomId, userId);
@@ -183,8 +181,6 @@ io.on('connection', (socket) => {
                     if (added) {
                         friendAdded = true
                         io.to(usersOnline[userId].socketId).emit('friendonline', roomUserId);
-                        console.log('usersOnline[roomUserId]')
-                        console.log(usersOnline[roomUserId])
                         io.to(usersOnline[roomUserId].socketId).emit('friendonline', userId);
                         io.to(usersOnline[roomUserId].socketId).emit('profilechange', userUtils.getSignedProfile(roomUserId));
                     }
@@ -202,8 +198,7 @@ io.on('connection', (socket) => {
         let response = {
             users: room.users,
             host: room.hostUserId === userId,
-            socketId: socketId,
-            videoId: room.videoId
+            socketId: socketId
         };
 
         fn(response);
@@ -211,53 +206,40 @@ io.on('connection', (socket) => {
 
     socket.on('friendinvite', ({friendUserId, roomId}) => {
         if (usersOnline[friendUserId]) {
-            console.log('friend invite');
             io.to(usersOnline[friendUserId].socketId).emit('friendinvite', {friendUserId: userId, roomId});
         }
     })
 
     //respond to timerequest
     socket.on('timeresponse', (data) => {
-        console.log('time response')
         let client = io.to(usersOnline[data.id].socketId);
-        if(data.isPlaying) {
-           client.emit('play', {time: data.time});
-        }
-        else {
-            console.log('seekpause')
-            client.emit('seekpause', {time: data.time});
-        }
+        client.emit('timeresponse', {time: data.time, isPlaying: data.isPlaying, videoId: data.videoId});
     });
 
     socket.on('timerequest', (data) => {
         const roomId = usersOnline[userId].roomId;
-        const hostUser = rooms[roomId].hostUserId;
-        io.to(hostUser.id).emit('timerequest', data);
+        const {hostUserId} = rooms[roomId];
+        io.to(usersOnline[hostUserId].socketId).emit('timerequest', data);
     });
 
     socket.on('pause', () => {
         const roomId = usersOnline[userId].roomId;
         socket.to(roomId).broadcast.emit('pause');
-        console.log('pause in ' + roomId);
     });
 
     socket.on('play', (data) => {
         const roomId = usersOnline[userId].roomId;
         socket.to(roomId).broadcast.emit('play', data);
-        console.log('play in ' + roomId);
     });
 
     socket.on('seek', (data) => {
         const roomId = usersOnline[userId].roomId;
         socket.to(roomId).broadcast.emit('seek', data);
-        console.log('seek in ' + roomId);
     });
 
     socket.on('cuevideo', (data) => {
         const roomId = usersOnline[userId].roomId;
-        rooms[roomId].videoId = data.videoId;
         socket.to(roomId).broadcast.emit('cuevideo', data);
-        console.log('switch to video: ' + data.videoId);
     });
 
     //Chat
@@ -268,8 +250,7 @@ io.on('connection', (socket) => {
     });
     
     socket.on('disconnect', () => {
-        console.log(usersOnline);
-        console.log(userId);
+        console.log('disconnect');
         
         if (usersOnline[userId]) {
             const friends = usersOnline[userId].profile.friends;
@@ -290,8 +271,10 @@ io.on('connection', (socket) => {
                 if (room.users.length === 0) {
                     console.log('deleting room: ' + roomId);
                     delete rooms[roomId];
-                } else if (room.hostuserId === userId) {
+                } else if (room.hostUserId === userId) {
                     room.hostUserId = room.users[0];
+                    console.log('old host is ' + userId);
+                    console.log('new host is ' + room.hostUserId);
                 }
             }
         }   
