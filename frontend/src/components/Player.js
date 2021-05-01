@@ -215,8 +215,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         //chat
         socket.on('chat', (data) => {
             setChatList((chatlist) => {
-                ref.current.chatBottom.scrollIntoView({ behavior: 'smooth' });
-                return [...chatlist, data];
+                return [data, ...chatlist];
             });
         });
     }
@@ -291,7 +290,18 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         <>
             <Spin spinning={loading} indicator={<LoadingOutlined style={{ fontSize: 50 }} spin />}>
                 <Row>
-                    <Col span={4} />
+                    <Col span={4}>
+                        <div style={{
+                            paddingTop:10,
+                            paddingLeft:40
+                        }}>
+                            <a href='/' style={{color:'black'}}>
+                            <h1>
+                                Glooo
+                            </h1>
+                            </a>
+                        </div>
+                    </Col>
                     <Col span={15}>
                         <Row style={{ marginTop: "70px" }}>
                             <Col span={17}>
@@ -336,7 +346,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                         </div>
                     </Col>
                     <Col span={5} >
-                        <Card title="Glooo Chat"
+                        <Card title="Chat"
                             extra={
                                 <>
                                     <Button size='large' shape='round'>
@@ -346,7 +356,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                                 </>
                             }
                             style={{ height: '100vh' }} >
-                            <div style={{ overflowY: 'scroll', height: '75vh' }} className="hideScroll">
+                            <div style={{ overflowY: 'scroll', height: '65vh', flexDirection:'column-reverse', display:'flex' }} className="hideScroll">
                                 {
                                     chatList.map(c =>
                                         <Comment
@@ -370,16 +380,8 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                                         />
                                     )
                                 }
-
-                                <br></br>
-                                <br></br>
-                                <br></br>
-                                <br></br>
-                                <br></br>
-                                <div ref={el => ref.current.chatBottom = el}>
-                                </div>
                             </div>
-                            <div style={{ marginRight: '20px' }}>
+                            <div style={{ marginRight: '20px', paddingTop:'70px' }}>
                                 <Form.Item>
                                     <Input.TextArea
                                         onChange={e => setChatBoxText(e.target.value)}

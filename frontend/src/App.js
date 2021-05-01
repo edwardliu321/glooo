@@ -1,5 +1,5 @@
 import React, { Component, useRef, useState, useEffect } from 'react';
-import {BrowserRouter as Router, Switch, Route, useHistory} from "react-router-dom";
+import {BrowserRouter as Router, Switch, Route, useHistory, Redirect} from "react-router-dom";
 import Player from './components/Player';
 import Home from './components/Home';
 import { notification, Button } from 'antd'
@@ -90,7 +90,8 @@ const App = ({}) => {
             profile ?
                 <Switch>
                     <Route exact path="/" component={Home} />
-                    <Route path="/video/:roomId" render ={(props) => <Player {...props} profile={profile} friendsOnline={friendsOnline} socket={socketRef.current}/>} />
+                    <Route path="/video/:roomId" render ={(props) => <Redirect to={`/v/${props.match.params.roomId}`} />} />
+                    <Route path="/v/:roomId" render ={(props) => <Player {...props} profile={profile} friendsOnline={friendsOnline} socket={socketRef.current}/>} />
                 </Switch>
              :
                 <></>
