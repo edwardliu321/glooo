@@ -90,7 +90,7 @@ const Home = (props) => {
                             }
                         </Col>
                     </Row>
-                    <Divider dashed>
+                    <Divider style={{borderColor:'gray'}}>
                         OR
                     </Divider>
                     <Row justify='center'>

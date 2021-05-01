@@ -128,7 +128,7 @@ io.on('connection', (socket) => {
 
     socket.on('init', (data, fn) => {
         let profile;
-        const response = {friendsOnline: []};
+        const response = {friendsOnline: [], name: ''};
 
         if (data.profile) {
             profile = userUtils.parseProfile(data.profile);
@@ -152,10 +152,10 @@ io.on('connection', (socket) => {
             profile = userUtils.createProfile();
             response.profile = userUtils.signProfile(profile);
         }
-    
         usersOnline[profile.userId] = {socketId, profile, roomId: null};
         userId = profile.userId;
         socket.emit('profilechange', userUtils.getSignedProfile(userId));
+        response.name = profile.name;
         
         fn(response);
     });
@@ -208,6 +208,13 @@ io.on('connection', (socket) => {
         if (usersOnline[friendUserId]) {
             io.to(usersOnline[friendUserId].socketId).emit('friendinvite', {friendUserId: userId, roomId});
         }
+    });
+
+    socket.on('namechange', ({name}) => {
+        let user = usersOnline[userId];
+        user.profile.name = name;
+        console.log(user);
+        socket.emit('profilechange', userUtils.getSignedProfile(userId));
     })
 
     //respond to timerequest
