@@ -83,6 +83,23 @@ const userUtils = {
             name: userId,
             friends: []
         };
+    },
+    leaveRoom: (userId) => {
+        const roomId = resources.usersOnline[userId].roomId;
+        const room = resources.rooms[roomId];
+        if (!room) return;
+
+        room.users = room.users.filter(usrId => usrId !== userId);
+        io.to(roomId).emit('userleft', userId);
+
+        if (room.users.length === 0) {
+            console.log('deleting room: ' + roomId);
+            delete resources.rooms[roomId];
+        } else if (room.hostUserId === userId) {
+            room.hostUserId = room.users[0];
+            console.log('old host is ' + userId);
+            console.log('new host is ' + room.hostUserId);
+        }
     }
 }
 
@@ -172,9 +189,10 @@ io.on('connection', (socket) => {
 
         if (room.users.length > 0) {
             //notify new user join
-            socket.to(roomId).broadcast.emit('userjoin',  userId);
+            const userProfile = usersOnline[userId].profile;
+            socket.to(roomId).broadcast.emit('userjoin', {userId: userProfile.userId,name: userProfile.name});
+
             let friendAdded = false;
-            
             room.users.forEach(roomUserId => {
                 userUtils.addFriend(userId, roomUserId);
                 userUtils.addFriend(roomUserId, userId, (added) => {
@@ -202,6 +220,10 @@ io.on('connection', (socket) => {
         };
 
         fn(response);
+    });
+
+    socket.on('leave', () => {
+        userUtils.leaveRoom(userId);
     });
 
     socket.on('friendinvite', ({friendUserId, roomId}) => {
@@ -261,29 +283,13 @@ io.on('connection', (socket) => {
         
         if (usersOnline[userId]) {
             const friends = usersOnline[userId].profile.friends;
-            const roomId = usersOnline[userId].roomId;
-            const room = rooms[roomId];
-    
             friends.forEach((friend) => {
                 if (usersOnline[friend.userId]) {
                     io.to(usersOnline[friend.userId].socketId).emit('friendoffline', userId);
                 }
             });
+            userUtils.leaveRoom(userId);
             delete resources.usersOnline[userId];
-    
-            if (room) {
-                room.users = room.users.filter(usrId => usrId !== userId);
-                socket.to(roomId).broadcast.emit('userleft', userId);
-    
-                if (room.users.length === 0) {
-                    console.log('deleting room: ' + roomId);
-                    delete rooms[roomId];
-                } else if (room.hostUserId === userId) {
-                    room.hostUserId = room.users[0];
-                    console.log('old host is ' + userId);
-                    console.log('new host is ' + room.hostUserId);
-                }
-            }
         }   
     });
 });

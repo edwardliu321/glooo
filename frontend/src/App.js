@@ -30,33 +30,34 @@ const App = ({ }) => {
     useEffect(() => {
         socketRef.current = SocketIOClient(socketEndpoint);
         const socket = socketRef.current;
-
+        const initialNameNotificationKey = 'initialNameNotification';
+        const submitNotificationNameChange =() => {
+            const name = notificationNameRef.current.state.value;
+            console.log(name)
+            socket.emit('namechange', { name: name });
+            notification.close(initialNameNotificationKey);
+        }
+    
         socket.on('connect', () => {
             const newProfile = localStorage.getItem(gloooTokenKey);
             socket.emit('init', { profile: newProfile }, ({ friendsOnline, name }) => {
                 console.log(friendsOnline);
                 setFriendsOnline(friendsOnline);
-                if (!newProfile) {
+                if (!newProfile || true) {
                     //show modal
-                    const key = 'initialNameNotification';
                     const btn = (
-                        <Button type="primary" size="small" onClick={() => {
-                            const name = notificationNameRef.current.state.value;
-                            console.log(name)
-                            socket.emit('namechange', { name: name });
-                            notification.close(key);
-                        }}>
+                        <Button type="primary" size="small" onClick={submitNotificationNameChange}>
                             Confirm
                         </Button>
                     );
                     notification.open({
-                        key,
+                        key: initialNameNotificationKey,
                         message: 'First time here?',
                         duration: 0,
                         description: (
                             <>
                                 What should we call you?
-                                <Input placeholder={name} ref={notificationNameRef}/>
+                                <Input placeholder={name} onPressEnter={submitNotificationNameChange} ref={notificationNameRef}/>
                             </>
                         ),
                         btn

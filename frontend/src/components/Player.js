@@ -43,6 +43,12 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         actionQueue[action] = true;
     }
 
+    useEffect(() => {
+        return () => {
+            socket.emit('leave');
+        };
+    }, []);
+
     function popAction(action) {
         //console.log('try pop ' + action);
         if (actionQueue[action]) {
@@ -198,18 +204,19 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             cueVideoById(videoId, false, time);
         });
 
-        socket.on('userjoin', (userId) => {
+        socket.on('userjoin', (user) => {
             setUsers((userList) => {
-                return [...userList, userId]
+                return [...userList, user];
             });
-            message.info("A user has joined!")
+            message.info(`${user.name} has joined!`);
         });
         socket.on('userleft', (userLeftId) => {
+            const leftUser = userList.find(user => user.userId === userLeftId);
             setUsers((userList) => {
-                let newUserList = [...userList]
-                return newUserList.filter((userId) => userId !== userLeftId)
+                let newUserList = [...userList];
+                return newUserList.filter((user) => user.userId !== userLeftId);
             })
-            message.warning("A user has left.")
+            message.warning(`${leftUser.name} has left.`);
         })
 
         //chat
