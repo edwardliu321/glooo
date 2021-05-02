@@ -43,7 +43,7 @@ const App = ({ }) => {
             socket.emit('init', { profile: newProfile }, ({ friendsOnline, name }) => {
                 console.log(friendsOnline);
                 setFriendsOnline(friendsOnline);
-                if (!newProfile || true) {
+                if (!newProfile) {
                     //show modal
                     const btn = (
                         <Button type="primary" size="small" onClick={submitNotificationNameChange}>
