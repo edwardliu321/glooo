@@ -1,4 +1,5 @@
 const express = require('express');
+const usernameGenerator  = require('username-generator');
 const cors = require('cors');
 const path = require('path');
 const app = express();
@@ -80,7 +81,7 @@ const userUtils = {
         let userId = generateID(12);
         return {
             userId: userId,
-            name: userId,
+            name: usernameGenerator.generateUsername(),
             friends: []
         };
     },

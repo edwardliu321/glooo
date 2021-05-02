@@ -33,8 +33,9 @@ const App = ({ }) => {
         const initialNameNotificationKey = 'initialNameNotification';
         const submitNotificationNameChange =() => {
             const name = notificationNameRef.current.state.value;
-            console.log(name)
-            socket.emit('namechange', { name: name });
+            if (name){
+                socket.emit('namechange', { name: name });
+            }
             notification.close(initialNameNotificationKey);
         }
     

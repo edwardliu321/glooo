@@ -2,10 +2,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider, notification, Badge } from 'antd'
 import config from '../config';
-import { UserOutlined, LoadingOutlined, ProfileFilled } from '@ant-design/icons';
+import { UserOutlined, LoadingOutlined, ProfileFilled, CopyOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import Linkify from 'react-linkify';
 import './Player.css';
+import { Link } from 'react-router-dom';
 
 const opts = {
     width: '853',
@@ -15,6 +16,10 @@ const opts = {
     }
 }
 
+message.config({
+    top:'90%',
+    maxCount:1
+})
 
 const {serverEndpoint} = config;
 
@@ -23,7 +28,6 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     /******** States and Refs *********/
     const roomId = match.params.roomId;
 
-    const [name, setName] = useState(null);
     const [userList, setUsers] = useState([]);
     const [chatList, setChatList] = useState([]);
     const [chatBoxText, setChatBoxText] = useState(null);
@@ -35,10 +39,12 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     const [videoBrowseSearch, setVideoBrowseSearch] = useState();
     const [showBrowseVideo, setShowBrowseVideo] = useState(false);
     const [showFriendsList, setShowFriendsList] = useState(false);
+
     let ref = useRef({ player: null, socketId: null, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
     let { player, actionQueue } = ref.current;
 
-    window.player = player;
+    const chatRef = useRef();
+
     function pushAction(action) {
         actionQueue[action] = true;
     }
@@ -46,6 +52,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     useEffect(() => {
         return () => {
             socket.emit('leave');
+            message.destroy();
         };
     }, []);
 
@@ -64,7 +71,6 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             let url = new URL(id);
             id = url.searchParams.get("v") || id;
         }
-        catch{ }
         finally {
             return id;
         }
@@ -74,8 +80,9 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         if (!chatBoxText) return;
         let chatData = {
             content: chatBoxText,
-            author: name
+            author: profile.name
         };
+        chatRef.current.scrollTop = 0;
         socket.emit('chat', chatData);
         setChatBoxText(null);
     }
@@ -106,28 +113,11 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         })
     }
 
-    // function loadMoreVideos(){
-    //     console.log('load more');
-    //     setVideoList(old => {
-    //         return [...old, ...old];
-    //     });
-    //     return;
-    //     axios.get(`${serverEndpoint}/videos/search?q=${ref.current.videoSearchData.q}&pageToken=${ref.current.videoSearchData.nextPageToken}`)
-    //     .then(response => {
-    //         let { items, nextPageToken } = response.data;
-    //         setVideoList(old => {
-    //             return [...old, ...items];
-    //         });
-    //         ref.current.videoSearchData.nextPageToken = nextPageToken;
-    //     });
-    // }
-
     function selectBrowseVideo(e, videoId){
         e.preventDefault();
         setShowBrowseVideo(false);
             cueVideoById(videoId, true);
     }
-
 
     function openNameForm(){
         notification.open({
@@ -137,6 +127,31 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             ),
             duration: 0,
         })
+    }
+
+    const announceUserJoined = (name) => {
+        const announcement = {
+            type:'announcement',
+            content:<span>Welcome, <strong>{name}</strong></span>
+        }
+        setChatList((chatlist) => {
+            return [announcement, ...chatlist];
+        });
+    }
+
+    const announceUserLeft = (name) => {
+        const announcement = {
+            type:'announcement',
+            content:<span><strong>{name}</strong> has left</span>
+        }
+        setChatList((chatlist) => {
+            return [announcement, ...chatlist];
+        });
+    }
+
+    const copyRoomLink = () => {
+        navigator.clipboard.writeText(window.location.href);
+        message.success('Invite link copied');
     }
 
     /******** Socket Logic *********/
@@ -150,14 +165,20 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             console.log("join data ", data);
             ref.current.socketId = data.socketId;
             setUsers(data.users);
-            setName(data.name);
             if (data.host) {
                 ref.current.isHost = true;
             }
             else {
                 socket.emit('timerequest', {id: profile.userId})
             }
-            message.success(`Joined room "${roomId}"`);
+            if (ref.current.isHost){
+                message.success(`Created room "${roomId}"`);
+            }
+            else{
+                message.success(`Joined room "${roomId}"`);
+            }
+            
+            announceUserJoined(profile.name);
 
             setLoading(false);
         });
@@ -205,25 +226,37 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         });
 
         socket.on('userjoin', (user) => {
+            //if already in room
+            if (userList.find(x => x.userId === user.userId)) return;
+
             setUsers((userList) => {
                 return [...userList, user];
             });
-            message.info(`${user.name} has joined!`);
+            announceUserJoined(user.name);
         });
+
         socket.on('userleft', (userLeftId) => {
             const leftUser = userList.find(user => user.userId === userLeftId);
             setUsers((userList) => {
                 let newUserList = [...userList];
                 return newUserList.filter((user) => user.userId !== userLeftId);
-            })
-            message.warning(`${leftUser.name} has left.`);
+            });
+            announceUserLeft(leftUser.profile.name);
         })
 
         //chat
         socket.on('chat', (data) => {
+            let stickToBottom = false;
+            if (chatRef.current.scrollTop >= 0){
+                //chat is at bottom
+                stickToBottom = true;
+            }
             setChatList((chatlist) => {
                 return [data, ...chatlist];
             });
+            if (stickToBottom){
+                chatRef.current.scrollTop = 0;
+            }
         });
     }
 
@@ -258,10 +291,6 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         if (time !== null && time !== undefined) player.seekTo(time);
         player.playVideo();
       
-    }
-
-    const seekTo = (time, emit) => {
-        player.seekTo(time)
     }
 
     const getCurrentTime = () => {
@@ -299,18 +328,18 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                 <Row>
                     <Col span={4}>
                         <div style={{
-                            paddingTop:10,
-                            paddingLeft:40
+                            marginTop:'15px',
+                            paddingLeft:'40px'
                         }}>
-                            <a href='/' style={{color:'black'}}>
+                            <Link to='/' style={{color:'black'}}>
                             <h1>
                                 Glooo
                             </h1>
-                            </a>
+                            </Link>
                         </div>
                     </Col>
                     <Col span={15}>
-                        <Row style={{ marginTop: "70px" }}>
+                        <Row style={{ marginTop: "20px" }}>
                             <Col span={17}>
                                 <Input.Search
                                     placeholder="Paste URL or Video Id"
@@ -339,6 +368,16 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                                     Friends
                                 </Button>
                             </Col>
+                            <Col span={3}>
+                                <Button 
+                                    size="large" 
+                                    shape='round'
+                                    onClick={copyRoomLink}
+                                    icon={<CopyOutlined />}
+                                >
+                                    Invite
+                                </Button>
+                            </Col>
                         </Row>
                         <div style={{ display: currentVideoId ? '' : 'none' }}>
                             <Row style={{ marginTop: "50px" }}>
@@ -363,9 +402,14 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                                 </>
                             }
                             style={{ height: '100vh' }} >
-                            <div style={{ overflowY: 'scroll', height: '65vh', flexDirection:'column-reverse', display:'flex' }} className="hideScroll">
+                            <div ref={chatRef} style={{ overflowY: 'scroll', height: '65vh', flexDirection:'column-reverse', display:'flex' }} className="hideScroll">
                                 {
-                                    chatList.map(c =>
+                                    chatList.map((c,i) => (
+                                        c.type === 'announcement' ?
+                                        <div key={i}>
+                                            {c.content}
+                                        </div>
+                                        :
                                         <Comment
                                             key={c.id}
                                             author={c.author}
@@ -385,10 +429,13 @@ const Player = ({socket, match, profile, friendsOnline}) => {
 
                                             }
                                         />
-                                    )
+                                    ))
+                                }
+                                {
+
                                 }
                             </div>
-                            <div style={{ marginRight: '20px', paddingTop:'70px' }}>
+                            <div style={{ paddingTop:'70px' }}>
                                 <Form.Item>
                                     <Input.TextArea
                                         onChange={e => setChatBoxText(e.target.value)}
@@ -417,21 +464,31 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                 placement="right"
             >
                 { 
-                    profile.friends.map(({name, userId}) => {
+                    profile.friends.filter(x => friendsOnline.includes(x.userId)).map(({name, userId}) => {
                         return(
                             <Row justify='space-between'>
-                                <Badge status={friendsOnline.includes(userId) ? "success" : "default"} text={name} />
-                                <Button 
-                                    type="primary" 
-                                    onClick={() => {
-                                        inviteFriend(userId);
-                                    }}
-                                >
-                                    Invite
-                                </Button>   
+                                <Badge status="success" text={name} />
+                                    <Button 
+                                        type="primary" 
+                                        onClick={() => {
+                                            inviteFriend(userId);
+                                        }}
+                                    >
+                                        Invite
+                                    </Button>   
                             </Row> 
                         )
-                    }) }
+                    }) 
+                }
+                { 
+                    profile.friends.filter(x => !friendsOnline.includes(x.userId)).map(({name, userId}) => {
+                        return(
+                            <Row justify='space-between'>
+                                <Badge status="default" text={name} />
+                            </Row> 
+                        )
+                    }) 
+                }
             </Drawer>
 
             <Drawer
