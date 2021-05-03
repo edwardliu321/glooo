@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import YouTube from 'react-youtube';
 import { message, Button, Row, Col, Input, Card, Comment, Form, Spin, Avatar, Drawer, List, Divider, notification, Badge } from 'antd'
 import config from '../config';
-import { UserOutlined, LoadingOutlined, ProfileFilled, CopyOutlined } from '@ant-design/icons';
+import { UserOutlined, LoadingOutlined, ProfileFilled, CopyOutlined, UserSwitchOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import Linkify from 'react-linkify';
 import './Player.css';
@@ -24,7 +24,6 @@ message.config({
 const {serverEndpoint} = config;
 
 const Player = ({socket, match, profile, friendsOnline}) => {
-
     /******** States and Refs *********/
     const roomId = match.params.roomId;
 
@@ -40,14 +39,11 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     const [showBrowseVideo, setShowBrowseVideo] = useState(false);
     const [showFriendsList, setShowFriendsList] = useState(false);
 
-    let ref = useRef({ player: null, socketId: null, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
+    const ref = useRef({ player: null, socketId: null, isHost: false, actionQueue: {}, chatBottom: null, videoSearchData: {} });
     let { player, actionQueue } = ref.current;
 
     const chatRef = useRef();
-
-    function pushAction(action) {
-        actionQueue[action] = true;
-    }
+    const userListRef = useRef();
 
     useEffect(() => {
         return () => {
@@ -55,6 +51,14 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             message.destroy();
         };
     }, []);
+
+    useEffect(() => {
+        userListRef.current = userList;
+    }, [userList])
+    
+    function pushAction(action) {
+        actionQueue[action] = true;
+    }
 
     function popAction(action) {
         //console.log('try pop ' + action);
@@ -184,6 +188,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         });
 
         //** Syncronizing Players **/
+        socket.off('pause');
         socket.on('pause', () => {
             console.log('recieve pause');
             if (player.getPlayerState() !== YouTube.PlayerState.PAUSED) {
@@ -194,6 +199,7 @@ const Player = ({socket, match, profile, friendsOnline}) => {
                 console.log('ignored pause');
             }
         });
+        socket.off('play');
         socket.on('play', (data) => {
             console.log('recieve play');
             let { time } = data;
@@ -202,12 +208,13 @@ const Player = ({socket, match, profile, friendsOnline}) => {
         });
 
         /** Handling Video Changes **/
+        socket.off('cuevideo');
         socket.on('cuevideo', (data) => {
             cueVideoById(data.videoId, false);
         })
 
-       
         /** Handling User Join/Leave **/
+        socket.off('timerequest');
         socket.on('timerequest', (data) => {
             console.log('timerequest')
             
@@ -220,31 +227,32 @@ const Player = ({socket, match, profile, friendsOnline}) => {
             })
         });
 
+        socket.off('timeresponse');
         socket.on('timeresponse', (data) => {
             let {time,isPlaying, videoId} = data;
             cueVideoById(videoId, false, time);
         });
 
+        socket.off('userjoin');
         socket.on('userjoin', (user) => {
-            //if already in room
-            if (userList.find(x => x.userId === user.userId)) return;
-
             setUsers((userList) => {
                 return [...userList, user];
             });
             announceUserJoined(user.name);
         });
 
+        socket.off('userleft');
         socket.on('userleft', (userLeftId) => {
-            const leftUser = userList.find(user => user.userId === userLeftId);
+            const leftUser =  userListRef.current.find(user => user.userId === userLeftId);
             setUsers((userList) => {
                 let newUserList = [...userList];
                 return newUserList.filter((user) => user.userId !== userLeftId);
             });
-            announceUserLeft(leftUser.profile.name);
+            announceUserLeft(leftUser.name);
         })
 
         //chat
+        socket.off('chat');
         socket.on('chat', (data) => {
             let stickToBottom = false;
             if (chatRef.current.scrollTop >= 0){
@@ -263,7 +271,6 @@ const Player = ({socket, match, profile, friendsOnline}) => {
     function inviteFriend(friendUserId){
         socket.emit('friendinvite', {friendUserId, roomId})
     }
-
 
     /******** Player Controls Functions *********/
 

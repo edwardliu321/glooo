@@ -20,7 +20,6 @@ const App = ({ }) => {
     const [friendsOnline, setFriendsOnline] = useState([]);
     const notificationNameRef = useRef();
     const socketRef = useRef();
-    const history = useHistory();
     const profileRef = useRef();
 
     useEffect(() => {
@@ -41,7 +40,11 @@ const App = ({ }) => {
     
         socket.on('connect', () => {
             const newProfile = localStorage.getItem(gloooTokenKey);
-            socket.emit('init', { profile: newProfile }, ({ friendsOnline, name }) => {
+            socket.emit('init', { profile: newProfile }, ({ friendsOnline, name, error }) => {
+                if (error){
+                    alert(error);
+                    return;
+                }
                 console.log(friendsOnline);
                 setFriendsOnline(friendsOnline);
                 if (!newProfile) {

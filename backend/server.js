@@ -150,6 +150,12 @@ io.on('connection', (socket) => {
 
         if (data.profile) {
             profile = userUtils.parseProfile(data.profile);
+            if (usersOnline[profile.userId]){
+                //already connected
+                fn({error: 'Seems like you already have glooo opened in another window!'});
+                socket.disconnect(true);
+                return;
+            }
             profile.friends.forEach((friend) => {
                 if (usersOnline[friend.userId]) {
                     if (usersOnline[friend.userId].profile.name !== friend.name) {
@@ -215,7 +221,13 @@ io.on('connection', (socket) => {
         room.users.push(userId);
         
         let response = {
-            users: room.users,
+            users: room.users.map(id => {
+                const {userId, name} = usersOnline[id].profile;
+                return {
+                    userId, 
+                    name
+                }
+            }),
             host: room.hostUserId === userId,
             socketId: socketId
         };
