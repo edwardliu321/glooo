@@ -89,10 +89,13 @@ const userUtils = {
         const roomId = resources.usersOnline[userId].roomId;
         const room = resources.rooms[roomId];
         if (!room) return;
-
+        
         room.users = room.users.filter(usrId => usrId !== userId);
         io.to(roomId).emit('userleft', userId);
-
+        const socket = io.sockets.sockets[resources.usersOnline[userId].socketId];
+        if (socket){
+            socket.leave(roomId);
+        }
         if (room.users.length === 0) {
             console.log('deleting room: ' + roomId);
             delete resources.rooms[roomId];
@@ -187,7 +190,6 @@ io.on('connection', (socket) => {
     socket.on('join', (data, fn) => {
         const roomId = data.roomId;
         socket.join(roomId);
-        
         //create in server. Will assume room always exists.
         if(!rooms[roomId]) resources.createRoom(roomId, userId);
         usersOnline[userId].roomId = roomId;
