@@ -15,7 +15,7 @@
     "express": "^4.17.1",
     "googleapis": "^52.1.0",
     "jws": "^4.0.0",
-    "mongoose": "^5.8.11",
+    "mongoose": "^5.13.15",
     "nodemon": "^2.0.2",
     "socket.io": "^2.4.0",
     "username-generator": "^1.1.0"
